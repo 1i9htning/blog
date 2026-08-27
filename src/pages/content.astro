@@ -1,0 +1,352 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostCard from '../components/PostCard.astro';
+import { getPublishedPosts, postEpoch, sortPosts } from '../lib/posts';
+import { formatEpochShort, groupByMonth } from '../lib/time';
+
+const posts = sortPosts(await getPublishedPosts(), 'updated');
+const tagCounts = new Map<string, number>();
+for (const post of posts) {
+  for (const tag of post.tags) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+}
+const tags = [...tagCounts.entries()].sort(([leftTag, leftCount], [rightTag, rightCount]) =>
+  rightCount - leftCount || leftTag.localeCompare(rightTag, 'zh-CN')
+);
+const timeline = groupByMonth(posts, (post) => postEpoch(post, 'updated'));
+const clientPosts = posts.map((post) => ({
+  id: post.id,
+  title: post.title,
+  description: post.description,
+  tags: post.tags,
+  created: postEpoch(post, 'created'),
+  updated: postEpoch(post, 'updated'),
+}));
+const serializedPosts = JSON.stringify(clientPosts).replace(/</g, '\\u003c');
+---
+
+<BaseLayout title="内容">
+  <div class="page-shell">
+    <header class="page-heading">
+      <h1>内容</h1>
+      <span id="post-count">共 {posts.length} 篇</span>
+    </header>
+    <div class="content-layout">
+      <section class="content-primary" aria-label="内容列表">
+        <div class="content-controls">
+          <div class="sort-control" role="group" aria-label="排序方式">
+            <button type="button" data-sort="updated" class="active" aria-pressed="true">更新时间</button>
+            <button type="button" data-sort="created" aria-pressed="false">创建时间</button>
+          </div>
+          <div class="tag-filters" aria-label="按标签筛选">
+            {tags.map(([tag]) => <button type="button" data-tag={tag} aria-pressed="false">{tag}</button>)}
+            <span id="filter-logic" class="filter-note" hidden>任一匹配</span>
+            <button id="clear-filters" class="clear-button" type="button" hidden>清除筛选</button>
+          </div>
+        </div>
+        <div id="post-list" class="post-list">
+          {posts.map((post) => <PostCard post={post} />)}
+        </div>
+        <div id="empty-state" class="empty-state" hidden>
+          <p>没有匹配的内容</p>
+          <button id="empty-clear" class="clear-button" type="button">清除筛选</button>
+        </div>
+      </section>
+      <aside class="timeline-aside" aria-label="时间轴">
+        <h2>时间轴 <span id="timeline-field">按更新时间</span></h2>
+        <nav id="timeline" class="timeline-list" aria-label="内容时间轴">
+          {timeline.map((group) => (
+            <section class="timeline-group">
+              <h3>{group.label}</h3>
+              {group.items.map((post) => (
+                <a href={`#post-${post.id}`}>
+                  <time>{group.unknown ? '——' : formatEpochShort(postEpoch(post, 'updated')!)}</time>
+                  <span>{post.title}</span>
+                </a>
+              ))}
+            </section>
+          ))}
+        </nav>
+      </aside>
+    </div>
+  </div>
+  <script id="posts-data" type="application/json" is:inline set:html={serializedPosts}></script>
+  <script>
+    import { compareEpochDesc, formatEpochShort, groupByMonth } from '../lib/time';
+
+    interface ClientPost {
+      id: string;
+      title: string;
+      description: string;
+      tags: string[];
+      created: number | null;
+      updated: number | null;
+    }
+    type SortKey = 'created' | 'updated';
+    interface ContentPosition {
+      url: string;
+      scrollY: number;
+    }
+    interface RestoreIntent {
+      url: string;
+    }
+    interface ArticleDeparture {
+      contentUrl: string;
+      articleUrl: string;
+    }
+
+    const POSITION_KEY = 'li9htning:content-list:v1:position';
+    const RESTORE_INTENT_KEY = 'li9htning:content-list:v1:restore-intent';
+    const ARTICLE_DEPARTURE_KEY = 'li9htning:content-list:v1:article-departure';
+
+    const data = document.querySelector<HTMLScriptElement>('#posts-data');
+    const posts = JSON.parse(data?.textContent ?? '[]') as ClientPost[];
+    const list = document.querySelector<HTMLElement>('#post-list');
+    const timeline = document.querySelector<HTMLElement>('#timeline');
+    const count = document.querySelector<HTMLElement>('#post-count');
+    const empty = document.querySelector<HTMLElement>('#empty-state');
+    const filterLogic = document.querySelector<HTMLElement>('#filter-logic');
+    const timelineField = document.querySelector<HTMLElement>('#timeline-field');
+    const search = document.querySelector<HTMLInputElement>('#nav-search-input');
+    const searchForm = document.querySelector<HTMLFormElement>('#nav-search-form');
+    const sortButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-sort]')];
+    const tagButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-tag]')];
+    const clearButtons = [
+      document.querySelector<HTMLButtonElement>('#clear-filters'),
+      document.querySelector<HTMLButtonElement>('#empty-clear'),
+    ].filter((button): button is HTMLButtonElement => button !== null);
+    const cards = new Map<string, HTMLElement>();
+    list?.querySelectorAll<HTMLElement>('[data-post-id]').forEach((card) => {
+      const id = card.dataset.postId;
+      if (id) cards.set(id, card);
+    });
+
+    const availableTags = new Set(posts.flatMap((post) => post.tags));
+    const params = new URLSearchParams(location.search);
+    const selectedTags = new Set(params.getAll('tag').filter((tag) => availableTags.has(tag)));
+    let sort: SortKey = params.get('sort') === 'created' ? 'created' : 'updated';
+    let query = params.get('search') ?? '';
+    if (search) search.value = query;
+
+    function contentUrl() {
+      return `${location.pathname}${location.search}`;
+    }
+
+    function isContentUrl(value: unknown): value is string {
+      if (typeof value !== 'string') return false;
+      try {
+        const url = new URL(value, location.origin);
+        return url.origin === location.origin
+          && value === `${url.pathname}${url.search}`
+          && (url.pathname === '/content/' || url.pathname === '/content');
+      } catch {
+        return false;
+      }
+    }
+
+    function readPosition(): ContentPosition | null {
+      try {
+        const value = JSON.parse(sessionStorage.getItem(POSITION_KEY) ?? 'null') as Partial<ContentPosition> | null;
+        if (!value || !isContentUrl(value.url) || typeof value.scrollY !== 'number'
+          || !Number.isFinite(value.scrollY) || value.scrollY < 0) return null;
+        return { url: value.url, scrollY: value.scrollY };
+      } catch {
+        return null;
+      }
+    }
+
+    function takeRestoreIntent(): RestoreIntent | null {
+      try {
+        const value = JSON.parse(sessionStorage.getItem(RESTORE_INTENT_KEY) ?? 'null') as Partial<RestoreIntent> | null;
+        sessionStorage.removeItem(RESTORE_INTENT_KEY);
+        return value && isContentUrl(value.url) ? { url: value.url } : null;
+      } catch {
+        try { sessionStorage.removeItem(RESTORE_INTENT_KEY); } catch { /* storage unavailable */ }
+        return null;
+      }
+    }
+
+    function savePosition() {
+      const value: ContentPosition = {
+        url: contentUrl(),
+        scrollY: Math.max(0, window.scrollY),
+      };
+      try { sessionStorage.setItem(POSITION_KEY, JSON.stringify(value)); } catch { /* storage unavailable */ }
+    }
+
+    function setArticleDeparture(value: ArticleDeparture | null) {
+      try {
+        if (value) sessionStorage.setItem(ARTICLE_DEPARTURE_KEY, JSON.stringify(value));
+        else sessionStorage.removeItem(ARTICLE_DEPARTURE_KEY);
+      } catch { /* storage unavailable */ }
+    }
+
+    function renderTimeline(visible: ClientPost[]) {
+      if (!timeline) return;
+      const groups = groupByMonth(visible, (post) => post[sort]);
+      const fragment = document.createDocumentFragment();
+      for (const group of groups) {
+        const section = document.createElement('section');
+        section.className = 'timeline-group';
+        const heading = document.createElement('h3');
+        heading.textContent = group.label;
+        section.append(heading);
+        for (const post of group.items) {
+          const link = document.createElement('a');
+          link.href = `#post-${post.id}`;
+          const date = document.createElement('time');
+          const epoch = post[sort];
+          date.textContent = epoch === null ? '——' : formatEpochShort(epoch);
+          const title = document.createElement('span');
+          title.textContent = post.title;
+          link.append(date, title);
+          section.append(link);
+        }
+        fragment.append(section);
+      }
+      timeline.replaceChildren(fragment);
+    }
+
+    function syncUrl() {
+      const next = new URLSearchParams();
+      for (const tag of selectedTags) next.append('tag', tag);
+      if (sort !== 'updated') next.set('sort', sort);
+      if (query.trim()) next.set('search', query.trim());
+      history.replaceState(null, '', next.size > 0 ? `?${next}` : location.pathname);
+    }
+
+    function applyFilters() {
+      const normalized = query.trim().toLocaleLowerCase();
+      const visible = posts.filter((post) => {
+        const tagMatch = selectedTags.size === 0 || post.tags.some((tag) => selectedTags.has(tag));
+        // Search is intentionally isolated so description and tags can be added later.
+        const searchMatch = normalized === '' || post.title.toLocaleLowerCase().includes(normalized);
+        return tagMatch && searchMatch;
+      });
+      visible.sort((left, right) => compareEpochDesc(left[sort], right[sort]));
+
+      const visibleIds = new Set(visible.map((post) => post.id));
+      for (const post of visible) {
+        const card = cards.get(post.id);
+        if (card && list) {
+          card.hidden = false;
+          list.append(card);
+        }
+      }
+      for (const [id, card] of cards) card.hidden = !visibleIds.has(id);
+
+      const filtered = selectedTags.size > 0 || normalized !== '';
+      if (count) count.textContent = filtered ? `${visible.length} / ${posts.length} 篇` : `共 ${posts.length} 篇`;
+      if (empty) empty.hidden = visible.length !== 0;
+      if (list) list.hidden = visible.length === 0;
+      if (filterLogic) filterLogic.hidden = selectedTags.size < 2;
+      if (timelineField) timelineField.textContent = sort === 'created' ? '按创建时间' : '按更新时间';
+      clearButtons.forEach((button) => button.hidden = !filtered);
+      tagButtons.forEach((button) => {
+        const active = selectedTags.has(button.dataset.tag ?? '');
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+      sortButtons.forEach((button) => {
+        const active = button.dataset.sort === sort;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+      renderTimeline(visible);
+      syncUrl();
+    }
+
+    tagButtons.forEach((button) => button.addEventListener('click', () => {
+      const tag = button.dataset.tag;
+      if (!tag) return;
+      selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
+      applyFilters();
+    }));
+    sortButtons.forEach((button) => button.addEventListener('click', () => {
+      const next = button.dataset.sort;
+      if (next === 'created' || next === 'updated') {
+        sort = next;
+        applyFilters();
+      }
+    }));
+    clearButtons.forEach((button) => button.addEventListener('click', () => {
+      selectedTags.clear();
+      query = '';
+      if (search) search.value = '';
+      applyFilters();
+    }));
+    let searchTimer = 0;
+    search?.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = window.setTimeout(() => {
+        query = search.value;
+        applyFilters();
+      }, 100);
+    });
+    searchForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      query = search?.value ?? '';
+      applyFilters();
+    });
+
+    applyFilters();
+
+    let articleNavigationPending = false;
+    list?.addEventListener('click', (event) => {
+      if (event.defaultPrevented || !(event.target instanceof Element)) return;
+      const link = event.target.closest<HTMLAnchorElement>('a[href]');
+      if (!link || !list.contains(link)) return;
+
+      const target = new URL(link.href, location.href);
+      if (target.origin !== location.origin || !target.pathname.startsWith('/blog/')) return;
+
+      savePosition();
+      const sameTabNavigation = event.button === 0
+        && !event.altKey
+        && !event.ctrlKey
+        && !event.metaKey
+        && !event.shiftKey
+        && (!link.target || link.target === '_self')
+        && !link.hasAttribute('download');
+      articleNavigationPending = sameTabNavigation;
+      setArticleDeparture(sameTabNavigation ? {
+        contentUrl: contentUrl(),
+        articleUrl: `${target.pathname}${target.search}`,
+      } : null);
+    });
+
+    window.addEventListener('pagehide', () => {
+      savePosition();
+      if (!articleNavigationPending) setArticleDeparture(null);
+    });
+
+    let restoredFromBfcache = false;
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) restoredFromBfcache = true;
+    });
+
+    const position = readPosition();
+    const restoreIntent = takeRestoreIntent();
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    const shouldRestore = position?.url === contentUrl()
+      && (navigation?.type === 'back_forward' || restoreIntent?.url === contentUrl());
+
+    if (position && shouldRestore) {
+      void (async () => {
+        await document.fonts.ready.catch(() => undefined);
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        if (restoredFromBfcache || position.url !== contentUrl()) return;
+
+        const previousScrollBehavior = document.documentElement.style.getPropertyValue('scroll-behavior');
+        const previousPriority = document.documentElement.style.getPropertyPriority('scroll-behavior');
+        document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
+        window.scrollTo({ top: position.scrollY, left: 0, behavior: 'auto' });
+        if (previousScrollBehavior) {
+          document.documentElement.style.setProperty('scroll-behavior', previousScrollBehavior, previousPriority);
+        } else {
+          document.documentElement.style.removeProperty('scroll-behavior');
+        }
+      })();
+    }
+  </script>
+</BaseLayout>

@@ -109,6 +109,7 @@
   --contrib-cell: 11px;
   --contrib-gap: 3px;
   --contrib-label: 1.5rem;
+  --contrib-weeks: 53;
   --contrib-0: #EAE2D8;
 }
 
@@ -310,7 +311,7 @@ button { color: inherit; }
 .site-main { min-height: 100vh; padding-top: var(--nav-height); }
 .page-shell { width: min(calc(100% - 3rem), var(--container)); margin: 0 auto; padding: 2.75rem 0 6rem; }
 .narrow-page { max-width: 44rem; }
-.contributions-page { max-width: 50rem; }
+.contributions-page { max-width: 58rem; }
 
 .page-heading {
   display: flex;
@@ -604,22 +605,34 @@ button { color: inherit; }
   border-radius: var(--radius-panel);
   box-shadow: var(--card-highlight), var(--shadow-1);
 }
+/* 图表 + 年份选择栏：桌面双列，窄屏纵向堆叠 */
+.contrib-layout { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; }
 .contributions { padding: 1.5rem 1.5rem 1.2rem; }
 .contrib-scroll { max-width: 100%; overflow-x: auto; scrollbar-width: thin; container-type: inline-size; }
-/* 流体方格：以滚动容器宽度（100cqi）反推 53 列尺寸，桌面端在 9–11px 间收缩恰好填满；分子留 1px 吸收引擎亚像素取整，避免触发横向滚动条。窄屏触底 9px 后由 .contrib-scroll 内部滚动兜底 */
-.contrib-inner { width: max-content; --contrib-cell: clamp(9px, calc((100cqi - var(--contrib-label) - var(--contrib-gap) - 52 * var(--contrib-gap) - 1px) / 53), 11px); }
-.contrib-months { display: grid; grid-template-columns: repeat(53, var(--contrib-cell)); gap: var(--contrib-gap); height: .85rem; margin: 0 0 .35rem calc(var(--contrib-label) + var(--contrib-gap)); }
+/* 每年一个网格块；--contrib-weeks 由标记内联注入（全年 53 列，闰年且元旦为周六时 54 列） */
+.contrib-year { --contrib-weeks: 53; }
+/* 切年淡入只允许 opacity：transform 的边界会计入滚动容器的 scrollable overflow，
+   在 overflow-x: auto 的容器里瞬间撑出纵向滚动条（此时 overflow-y 计算值为 auto），
+   滚动条又压缩内容宽度（100cqi 收缩）连带闪现横向滚动条 */
+.contrib-year:not([hidden]) { animation: contrib-year-in var(--duration) var(--ease); }
+@keyframes contrib-year-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* 流体方格：以滚动容器宽度（100cqi）反推列尺寸，桌面端在 9–11px 间收缩恰好填满；分子留 1px 吸收引擎亚像素取整，避免触发横向滚动条。窄屏触底 9px 后由 .contrib-scroll 内部滚动兜底，格子尺寸保持稳定 */
+.contrib-inner { width: max-content; --contrib-cell: clamp(9px, calc((100cqi - var(--contrib-label) - var(--contrib-gap) - (var(--contrib-weeks) - 1) * var(--contrib-gap) - 1px) / var(--contrib-weeks)), 11px); }
+.contrib-months { display: grid; grid-template-columns: repeat(var(--contrib-weeks), var(--contrib-cell)); gap: var(--contrib-gap); height: .85rem; margin: 0 0 .35rem calc(var(--contrib-label) + var(--contrib-gap)); }
 .contrib-month { color: var(--ink-tertiary); font-size: .66rem; line-height: .85rem; white-space: nowrap; }
 .contrib-body { display: flex; align-items: flex-start; gap: var(--contrib-gap); }
 .contrib-weekdays { flex: none; width: var(--contrib-label); display: grid; grid-template-rows: repeat(7, var(--contrib-cell)); row-gap: var(--contrib-gap); }
 .contrib-weekdays span { color: var(--ink-tertiary); font-size: .62rem; line-height: var(--contrib-cell); }
-.contrib-grid { display: grid; grid-template-columns: repeat(53, var(--contrib-cell)); grid-template-rows: repeat(7, var(--contrib-cell)); grid-auto-flow: column; gap: var(--contrib-gap); }
+.contrib-grid { display: grid; grid-template-columns: repeat(var(--contrib-weeks), var(--contrib-cell)); grid-template-rows: repeat(7, var(--contrib-cell)); grid-auto-flow: column; gap: var(--contrib-gap); }
 .contrib-cell { width: var(--contrib-cell); height: var(--contrib-cell); border-radius: 3px; background: var(--contrib-0); }
 .contrib-cell[data-level='1'] { background: color-mix(in srgb, var(--accent) 30%, var(--contrib-0)); }
 .contrib-cell[data-level='2'] { background: color-mix(in srgb, var(--accent) 52%, var(--contrib-0)); }
 .contrib-cell[data-level='3'] { background: color-mix(in srgb, var(--accent) 75%, var(--contrib-0)); }
 .contrib-cell[data-level='4'] { background: var(--accent); }
-.contrib-cell.future { background: transparent; }
+.contrib-cell.future, .contrib-cell.outside { background: transparent; }
 .contrib-cell[type='button'] { margin: 0; padding: 0; border: 0; appearance: none; cursor: pointer; }
 /* 活动格 inset hover/focus/selected 描边（保持内描边，不外扩） */
 .contrib-cell[type='button'] { transition: box-shadow var(--duration-fast) var(--ease); }
@@ -629,6 +642,41 @@ button { color: inherit; }
 .contrib-footer { display: flex; align-items: center; justify-content: flex-end; gap: .3rem; margin-top: .9rem; }
 .contrib-footer .contrib-cell { width: 10px; height: 10px; }
 .contrib-legend-label { margin: 0 .2rem; color: var(--ink-tertiary); font-size: .68rem; }
+
+/* 年份选择：桌面为图右侧纵向栏（年份 + 当年总数），窄屏转为横向 chip 行 */
+.contrib-years {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 1.1rem 1.2rem 1.1rem 1.25rem;
+  border-left: 1px solid var(--separator);
+}
+.contrib-year-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  min-width: 4.6rem;
+  min-height: 1.85rem;
+  padding: .18rem .6rem;
+  border: 0;
+  border-radius: var(--radius-chip);
+  background: transparent;
+  color: var(--ink-secondary);
+  font: .72rem/1.2 var(--font-mono);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+}
+.contrib-year-option:hover { color: var(--ink); background: var(--quiet); }
+.contrib-year-option:active { background: var(--quiet-strong); }
+.contrib-year-option.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--accent-chip-ring);
+}
+.contrib-year-count { color: var(--ink-tertiary); font-size: .64rem; font-weight: 400; }
 
 /* 详情区：同一 surface 内的第二个分组，以 separator 分隔 */
 .contrib-details { margin-top: 1.25rem; padding: 1.3rem 1.5rem 1.55rem; border-top: 1px solid var(--separator); }
@@ -657,10 +705,20 @@ button { color: inherit; }
 /* ================================================================
    响应式
    ================================================================ */
-/* 900px：时间轴下移，保留 panel 形态 */
+/* 900px：时间轴下移，保留 panel 形态；活动图年份栏转为横向 chip 行 */
 @media (max-width: 900px) {
   .content-layout { grid-template-columns: minmax(0, 1fr); gap: 2.25rem; }
   .timeline-aside { position: static; max-height: none; overflow: visible; }
+  .contrib-layout { grid-template-columns: minmax(0, 1fr); }
+  .contrib-years {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: .3rem;
+    padding: .9rem 1.15rem 1.05rem;
+    border-left: 0;
+    border-top: 1px solid var(--separator);
+  }
 }
 
 /* 700px：面板与留白收紧；顶栏控件收窄避免溢出 */
@@ -705,6 +763,7 @@ button { color: inherit; }
 
   .page-heading h1 { font-size: 1.6rem; }
   .contributions { padding: 1.15rem 1.15rem 1rem; }
+  .contrib-years { padding: .8rem 1.15rem .95rem; }
   .contrib-details { margin-top: 1rem; padding: 1.15rem 1.15rem 1.3rem; }
   .timeline-aside { padding: 1.05rem 1.1rem 1.2rem; }
   .post-card { padding: 1.1rem 1.15rem; }

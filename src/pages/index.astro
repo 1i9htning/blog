@@ -18,7 +18,8 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
       <h1>内容活动</h1>
       <span>过去 53 周 {total} 次活动</span>
     </header>
-    <section class="contributions" aria-label="内容活动图">
+    <div class="activity-panel">
+      <section class="contributions" aria-label="内容活动图">
       <div class="contrib-scroll">
         <div class="contrib-inner">
           <div class="contrib-months" aria-hidden="true">
@@ -74,6 +75,7 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
         )}
       </div>
       <div id="contrib-day-list" hidden></div>
+    </div>
     </div>
   </div>
   <script id="contributions-data" type="application/json" is:inline set:html={serializedActivities}></script>

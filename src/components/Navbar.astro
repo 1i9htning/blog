@@ -14,10 +14,10 @@ const avatarSrc = await getAvatarSrc();
 <header class="site-header">
   <div class="navbar-inner">
     <div class="brand-area">
-      <a class:list={['brand-link', { active: meActive }]} href="/me/" title="关于我" aria-current={meActive ? 'page' : undefined}>
+      <span class:list={['brand-link', { active: meActive }]}>
         <img class="brand-avatar" src={avatarSrc} alt="" width="28" height="28" />
         <span class="brand-text">Li9htning's blog</span>
-      </a>
+      </span>
     </div>
     <nav class="main-nav" aria-label="主导航">
       {links.map((link) => (

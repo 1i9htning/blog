@@ -1,0 +1,128 @@
+---
+import { getCollection, render, type CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { toPostView } from '../../lib/posts';
+import { formatEpochDate } from '../../lib/time';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('blog', (entry) => !entry.data.draft);
+  return entries.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+interface Props {
+  entry: CollectionEntry<'blog'>;
+}
+
+const { entry } = Astro.props;
+const post = toPostView(entry);
+const { Content } = await render(entry);
+const created = post.createdAt.value ? formatEpochDate(post.createdAt.value.getTime()) : '未知';
+const updated = post.updatedAt.value ? formatEpochDate(post.updatedAt.value.getTime()) : '未知';
+---
+
+<BaseLayout title={post.title}>
+  <article class="article-shell">
+    <header class="article-header">
+      <a class="back-link" href="/content/">← 返回内容</a>
+      <h1>{post.title}</h1>
+      <div class="article-meta">
+        <div class="post-tags" aria-label="内容标签">
+          {post.tags.map((tag) => <a class="tag-link" href={`/content/?tag=${encodeURIComponent(tag)}`}>{tag}</a>)}
+        </div>
+        <div class="post-dates">
+          <span>创建 <time>{created}</time></span>
+          <span>更新 <time>{updated}</time></span>
+        </div>
+      </div>
+    </header>
+    <div class="prose"><Content /></div>
+  </article>
+  <script>
+    interface ContentPosition {
+      url: string;
+      scrollY: number;
+    }
+    interface ArticleDeparture {
+      contentUrl: string;
+      articleUrl: string;
+    }
+
+    const POSITION_KEY = 'li9htning:content-list:v1:position';
+    const RESTORE_INTENT_KEY = 'li9htning:content-list:v1:restore-intent';
+    const ARTICLE_DEPARTURE_KEY = 'li9htning:content-list:v1:article-departure';
+    const backLink = document.querySelector<HTMLAnchorElement>('.back-link');
+
+    function isContentUrl(value: unknown): value is string {
+      if (typeof value !== 'string') return false;
+      try {
+        const url = new URL(value, location.origin);
+        return url.origin === location.origin
+          && value === `${url.pathname}${url.search}`
+          && (url.pathname === '/content/' || url.pathname === '/content');
+      } catch {
+        return false;
+      }
+    }
+
+    function readPosition(): ContentPosition | null {
+      try {
+        const value = JSON.parse(sessionStorage.getItem(POSITION_KEY) ?? 'null') as Partial<ContentPosition> | null;
+        if (!value || !isContentUrl(value.url) || typeof value.scrollY !== 'number'
+          || !Number.isFinite(value.scrollY) || value.scrollY < 0) return null;
+        return { url: value.url, scrollY: value.scrollY };
+      } catch {
+        return null;
+      }
+    }
+
+    function takeArticleDeparture(): ArticleDeparture | null {
+      try {
+        const value = JSON.parse(sessionStorage.getItem(ARTICLE_DEPARTURE_KEY) ?? 'null') as Partial<ArticleDeparture> | null;
+        sessionStorage.removeItem(ARTICLE_DEPARTURE_KEY);
+        if (!value || !isContentUrl(value.contentUrl) || typeof value.articleUrl !== 'string') return null;
+        return { contentUrl: value.contentUrl, articleUrl: value.articleUrl };
+      } catch {
+        try { sessionStorage.removeItem(ARTICLE_DEPARTURE_KEY); } catch { /* storage unavailable */ }
+        return null;
+      }
+    }
+
+    function referrerUrl() {
+      try {
+        const url = new URL(document.referrer);
+        return url.origin === location.origin ? `${url.pathname}${url.search}` : null;
+      } catch {
+        return null;
+      }
+    }
+
+    const position = readPosition();
+    const departure = takeArticleDeparture();
+    const currentArticleUrl = `${location.pathname}${location.search}`;
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    const canReturnThroughHistory = position !== null
+      && departure?.contentUrl === position.url
+      && departure.articleUrl === currentArticleUrl
+      && referrerUrl() === position.url
+      && navigation?.type === 'navigate';
+
+    if (backLink && position) backLink.href = position.url;
+    backLink?.addEventListener('click', (event) => {
+      if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+      if (canReturnThroughHistory) {
+        event.preventDefault();
+        history.back();
+        return;
+      }
+
+      if (position) {
+        event.preventDefault();
+        try {
+          sessionStorage.setItem(RESTORE_INTENT_KEY, JSON.stringify({ url: position.url }));
+        } catch { /* storage unavailable */ }
+        location.assign(position.url);
+      }
+    });
+  </script>
+</BaseLayout>

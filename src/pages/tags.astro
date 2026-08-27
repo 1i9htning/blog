@@ -1,0 +1,32 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getPublishedPosts } from '../lib/posts';
+
+const posts = await getPublishedPosts();
+const counts = new Map<string, number>();
+for (const post of posts) {
+  for (const tag of post.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+}
+const tags = [...counts.entries()].sort(([leftTag, leftCount], [rightTag, rightCount]) =>
+  rightCount - leftCount || leftTag.localeCompare(rightTag, 'zh-CN')
+);
+---
+
+<BaseLayout title="标签">
+  <div class="page-shell narrow-page">
+    <header class="page-heading">
+      <h1>标签</h1>
+      <span>{tags.length} 个</span>
+    </header>
+    <ul class="tag-index">
+      {tags.map(([tag, count]) => (
+        <li>
+          <a href={`/content/?tag=${encodeURIComponent(tag)}`}>
+            <span>{tag}</span>
+            <span class="tag-count">{count} 篇</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</BaseLayout>

@@ -1,0 +1,60 @@
+---
+import Navbar from '../components/Navbar.astro';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+}
+
+const { title } = Astro.props;
+const documentTitle = title ? `${title} · li9htning` : 'li9htning';
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" href="/fonts/Syke-Regular-2.otf" as="font" type="font/otf" crossorigin />
+    <link rel="preload" href="/fonts/ChillRoundFRegular.otf" as="font" type="font/otf" crossorigin />
+    <link rel="preload" href="/fonts/MapleMono4Li9htningNR-NFMono-CN-Regular.ttf" as="font" type="font/ttf" crossorigin />
+    <title>{documentTitle}</title>
+    <script is:inline>
+      (() => {
+        try {
+          const stored = localStorage.getItem('theme');
+          document.documentElement.dataset.theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+        } catch {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+    <Navbar />
+    <main id="main-content" class="site-main"><slot /></main>
+    <script>
+      const root = document.documentElement;
+      const button = document.querySelector<HTMLButtonElement>('#theme-toggle');
+
+      function updateLabel() {
+        if (!button) return;
+        const label = root.dataset.theme === 'dark' ? '切换到浅色主题' : '切换到深色主题';
+        button.setAttribute('aria-label', label);
+        button.setAttribute('title', label);
+      }
+
+      button?.addEventListener('click', () => {
+        const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        root.dataset.theme = next;
+        try { localStorage.setItem('theme', next); } catch { /* storage unavailable */ }
+        updateLabel();
+      });
+
+      updateLabel();
+    </script>
+  </body>
+</html>

@@ -1,17 +1,158 @@
 ---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { activityLabel, formatFullDate, getContributions, type PostActivity } from '../lib/contributions';
 
+const { cells, months, total, activityDays } = await getContributions();
+const weekdays = ['', '周一', '', '周三', '', '周五', ''];
+const levels = [0, 1, 2, 3, 4];
+const activityMap: Record<string, PostActivity[]> = {};
+for (const cell of cells) {
+  if (cell.activities.length > 0) activityMap[cell.date] = cell.activities;
+}
+const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c');
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout title="内容活动">
+  <div class="page-shell contributions-page">
+    <header class="page-heading">
+      <h1>内容活动</h1>
+      <span>过去 53 周 {total} 次活动</span>
+    </header>
+    <section class="contributions" aria-label="内容活动图">
+      <div class="contrib-scroll">
+        <div class="contrib-inner">
+          <div class="contrib-months" aria-hidden="true">
+            {months.map((label) => <span class="contrib-month">{label}</span>)}
+          </div>
+          <div class="contrib-body">
+            <div class="contrib-weekdays" aria-hidden="true">
+              {weekdays.map((label) => <span>{label}</span>)}
+            </div>
+            <div class="contrib-grid">
+              {cells.map((cell) => cell.future ? (
+                <span class="contrib-cell future" aria-hidden="true"></span>
+              ) : (
+                <button type="button" class="contrib-cell" data-level={cell.level} data-date={cell.date} title={cell.title} aria-label={cell.title} aria-pressed="false"></button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="contrib-footer" aria-hidden="true">
+        <span class="contrib-legend-label">少</span>
+        {levels.map((level) => <span class="contrib-cell" data-level={level}></span>)}
+        <span class="contrib-legend-label">多</span>
+      </div>
+    </section>
+    <div class="contrib-details">
+      <div class="contrib-details-heading">
+        <div class="contrib-details-title" aria-live="polite">
+          <h2 id="contrib-details-title">全部活动</h2>
+          <span id="contrib-details-count">共 {total} 次活动</span>
+        </div>
+        <button type="button" id="contrib-view-all" class="clear-button" hidden>查看全部</button>
+      </div>
+      <div id="contrib-all-list">
+        {activityDays.length > 0 ? (
+          <ul class="contrib-details-list">
+            {activityDays.map((day) => (
+              <li class="contrib-day">
+                <h3 class="contrib-day-date">{formatFullDate(day.date)}</h3>
+                <ul class="contrib-day-activities">
+                  {day.activities.map((activity) => (
+                    <li class="contrib-activity">
+                      <a href={`/blog/${activity.id}/`}>{activity.title}</a>
+                      <span class="contrib-details-kind">{activityLabel(activity.kind)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="contrib-details-empty">暂无内容活动</p>
+        )}
+      </div>
+      <div id="contrib-day-list" hidden></div>
+    </div>
+  </div>
+  <script id="contributions-data" type="application/json" is:inline set:html={serializedActivities}></script>
+  <script>
+    interface ActivityJson { id: string; title: string; kind: string; }
+    const labels: Record<string, string> = { created: '创建内容', updated: '更新内容', 'created-updated': '创建并更新内容' };
+    const data = document.querySelector<HTMLScriptElement>('#contributions-data');
+    const byDate = JSON.parse(data?.textContent ?? '{}') as Record<string, ActivityJson[]>;
+    const totalActivities = Object.values(byDate).reduce((sum, activities) => sum + activities.length, 0);
+    const titleHeading = document.querySelector<HTMLElement>('#contrib-details-title');
+    const countHeading = document.querySelector<HTMLElement>('#contrib-details-count');
+    const allList = document.querySelector<HTMLElement>('#contrib-all-list');
+    const dayList = document.querySelector<HTMLElement>('#contrib-day-list');
+    const viewAll = document.querySelector<HTMLButtonElement>('#contrib-view-all');
+    const buttons = [...document.querySelectorAll<HTMLButtonElement>('.contrib-cell[data-date]')];
+
+    function formatDate(date: string): string {
+      const [year, month, day] = date.split('-').map(Number);
+      return `${year} 年 ${month} 月 ${day} 日`;
+    }
+
+    function createRow(activity: ActivityJson): HTMLLIElement {
+      const row = document.createElement('li');
+      row.className = 'contrib-activity';
+      const link = document.createElement('a');
+      link.href = `/blog/${activity.id}/`;
+      link.textContent = activity.title;
+      const kind = document.createElement('span');
+      kind.className = 'contrib-details-kind';
+      kind.textContent = labels[activity.kind] ?? '内容活动';
+      row.append(link, kind);
+      return row;
+    }
+
+    function renderDay(date: string): void {
+      const activities = byDate[date] ?? [];
+      if (titleHeading) titleHeading.textContent = formatDate(date);
+      if (countHeading) countHeading.textContent = activities.length > 0 ? `${activities.length} 次活动` : '无活动';
+      if (dayList) {
+        dayList.replaceChildren();
+        if (activities.length === 0) {
+          const empty = document.createElement('p');
+          empty.className = 'contrib-details-empty';
+          empty.textContent = '这一天没有内容活动';
+          dayList.append(empty);
+        } else {
+          const list = document.createElement('ul');
+          list.className = 'contrib-details-list';
+          for (const activity of activities) list.append(createRow(activity));
+          dayList.append(list);
+        }
+        dayList.hidden = false;
+      }
+      if (allList) allList.hidden = true;
+      if (viewAll) viewAll.hidden = false;
+    }
+
+    function renderAll(): void {
+      if (titleHeading) titleHeading.textContent = '全部活动';
+      if (countHeading) countHeading.textContent = `共 ${totalActivities} 次活动`;
+      if (dayList) dayList.hidden = true;
+      if (allList) allList.hidden = false;
+      if (viewAll) viewAll.hidden = true;
+      for (const button of buttons) {
+        button.classList.remove('selected');
+        button.setAttribute('aria-pressed', 'false');
+      }
+    }
+
+    function selectCell(button: HTMLButtonElement): void {
+      for (const other of buttons) {
+        const active = other === button;
+        other.classList.toggle('selected', active);
+        other.setAttribute('aria-pressed', String(active));
+      }
+      renderDay(button.dataset.date ?? '');
+    }
+
+    for (const button of buttons) button.addEventListener('click', () => selectCell(button));
+    viewAll?.addEventListener('click', renderAll);
+  </script>
+</BaseLayout>

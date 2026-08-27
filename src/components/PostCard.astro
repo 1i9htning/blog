@@ -1,0 +1,26 @@
+---
+import type { PostView } from '../lib/posts';
+import { formatEpochDate } from '../lib/time';
+
+interface Props {
+  post: PostView;
+}
+
+const { post } = Astro.props;
+const created = post.createdAt.value ? formatEpochDate(post.createdAt.value.getTime()) : '未知';
+const updated = post.updatedAt.value ? formatEpochDate(post.updatedAt.value.getTime()) : '未知';
+---
+
+<article class="post-card" id={`post-${post.id}`} data-post-id={post.id}>
+  <h2><a href={`/blog/${post.id}/`}>{post.title}</a></h2>
+  {post.description && <p class="post-description">{post.description}</p>}
+  <div class="post-meta">
+    <div class="post-tags" aria-label="内容标签">
+      {post.tags.map((tag) => <a class="tag-link" href={`/content/?tag=${encodeURIComponent(tag)}`}>{tag}</a>)}
+    </div>
+    <div class="post-dates">
+      <span>创建 <time>{created}</time></span>
+      <span>更新 <time>{updated}</time></span>
+    </div>
+  </div>
+</article>

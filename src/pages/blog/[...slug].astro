@@ -14,7 +14,7 @@ interface Props {
 }
 
 const { entry } = Astro.props;
-const post = toPostView(entry);
+const post = await toPostView(entry);
 const { Content } = await render(entry);
 const created = post.createdAt.value ? formatEpochDate(post.createdAt.value.getTime()) : '未知';
 const updated = post.updatedAt.value ? formatEpochDate(post.updatedAt.value.getTime()) : '未知';

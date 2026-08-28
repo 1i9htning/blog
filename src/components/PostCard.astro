@@ -1,14 +1,14 @@
 ---
 import type { PostView } from '../lib/posts';
-import { formatEpochDate } from '../lib/time';
+import { formatEpochDateTime } from '../lib/time';
 
 interface Props {
   post: PostView;
 }
 
 const { post } = Astro.props;
-const created = post.createdAt.value ? formatEpochDate(post.createdAt.value.getTime()) : '未知';
-const updated = post.updatedAt.value ? formatEpochDate(post.updatedAt.value.getTime()) : '未知';
+const created = post.createdAt.value ? formatEpochDateTime(post.createdAt.value.getTime()) : '未知';
+const updated = post.updatedAt.value ? formatEpochDateTime(post.updatedAt.value.getTime()) : '未知';
 ---
 
 <article class="post-card" id={`post-${post.id}`} data-post-id={post.id}>

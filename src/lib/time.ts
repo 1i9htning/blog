@@ -21,9 +21,9 @@ export function resolveUpdatedAt(raw: Date | 'auto' | null | undefined): Resolve
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
-export function formatEpochDate(epoch: number): string {
+export function formatEpochDateTime(epoch: number): string {
   const date = new Date(epoch);
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 }
 
 export function formatEpochShort(epoch: number): string {

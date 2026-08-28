@@ -2,7 +2,7 @@
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { toPostView } from '../../lib/posts';
-import { formatEpochDate } from '../../lib/time';
+import { formatEpochDateTime } from '../../lib/time';
 
 export async function getStaticPaths() {
   const entries = await getCollection('blog', (entry) => !entry.data.draft);
@@ -16,8 +16,8 @@ interface Props {
 const { entry } = Astro.props;
 const post = await toPostView(entry);
 const { Content } = await render(entry);
-const created = post.createdAt.value ? formatEpochDate(post.createdAt.value.getTime()) : '未知';
-const updated = post.updatedAt.value ? formatEpochDate(post.updatedAt.value.getTime()) : '未知';
+const created = post.createdAt.value ? formatEpochDateTime(post.createdAt.value.getTime()) : '未知';
+const updated = post.updatedAt.value ? formatEpochDateTime(post.updatedAt.value.getTime()) : '未知';
 ---
 
 <BaseLayout title={post.title}>

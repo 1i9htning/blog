@@ -21,9 +21,24 @@ export function resolveUpdatedAt(raw: Date | 'auto' | null | undefined): Resolve
 
 const pad = (value: number) => String(value).padStart(2, '0');
 
+// 创建/更新时间固定按中国标准时间（Asia/Shanghai）展示，与构建机器时区无关。
+// 用 en-CA 取数值分量后自行拼接，分隔符不交给 locale 决定，避免格式漂移；
+// hourCycle 'h23' 保证午夜为 00 而非 24，不请求秒与时区标识。
+const shanghaiFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
 export function formatEpochDateTime(epoch: number): string {
-  const date = new Date(epoch);
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
+  const parts = shanghaiFormatter.formatToParts(new Date(epoch));
+  const pick = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  return `${pick('year')}-${pick('month')}-${pick('day')} ${pick('hour')}:${pick('minute')}`;
 }
 
 export function formatEpochShort(epoch: number): string {

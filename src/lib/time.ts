@@ -5,9 +5,10 @@ export interface ResolvedTime {
   source: TimeSource;
 }
 
-export function resolveCreatedAt(raw: Date | null | undefined): ResolvedTime {
+export function resolveCreatedAt(raw: Date | 'auto' | null | undefined): ResolvedTime {
   if (raw === undefined) return { value: null, source: 'missing' };
   if (raw === null) return { value: null, source: 'forbidden' };
+  if (raw === 'auto') return { value: null, source: 'auto' };
   return { value: raw, source: 'explicit' };
 }
 

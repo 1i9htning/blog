@@ -1,5 +1,5 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
-import { getGitModifiedTime } from './git-time';
+import { getGitCreatedTime, getGitModifiedTime } from './git-time';
 import { compareEpochDesc, resolveCreatedAt, resolveUpdatedAt, type ResolvedTime } from './time';
 
 export type PostSort = 'created' | 'updated';
@@ -21,13 +21,21 @@ async function fillUpdatedAtFromGit(entry: CollectionEntry<'blog'>, resolved: Re
   return { value: new Date(epochMillis), source: resolved.source };
 }
 
+async function fillCreatedAtFromGit(entry: CollectionEntry<'blog'>, resolved: ResolvedTime): Promise<ResolvedTime> {
+  if (resolved.source !== 'auto' && resolved.source !== 'missing') return resolved;
+  if (!entry.filePath) return resolved;
+  const epochMillis = await getGitCreatedTime(entry.filePath);
+  if (epochMillis === null) return resolved;
+  return { value: new Date(epochMillis), source: resolved.source };
+}
+
 export async function toPostView(entry: CollectionEntry<'blog'>): Promise<PostView> {
   return {
     id: entry.id,
     title: entry.data.title,
     description: entry.data.description,
     tags: entry.data.tags,
-    createdAt: resolveCreatedAt(entry.data.createdAt),
+    createdAt: await fillCreatedAtFromGit(entry, resolveCreatedAt(entry.data.createdAt)),
     updatedAt: await fillUpdatedAtFromGit(entry, resolveUpdatedAt(entry.data.updatedAt)),
   };
 }

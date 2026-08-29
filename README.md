@@ -19,6 +19,29 @@ Inside of your Astro project, you'll see the following folders and files:
 └── package.json
 ```
 
+## ✍️ 博客内容
+
+文章放在 `src/content/blog/` 中，支持任意层级的目录。例如，一篇文章及其图片可以放在同一个文件夹：
+
+```text
+src/content/blog/2026/my-post/
+├── my-post.md
+├── cover.png
+└── images/
+    └── diagram.png
+```
+
+在 Markdown 中可用相对路径引用同级图片：`![封面](./cover.png)`。
+
+文章之间可用 Wiki 链接直接按**文件名**跳转，无需写目录或扩展名：
+
+```md
+参见 [[another-post]]。
+也可使用 [[another-post|另一篇文章]] 自定义链接文字。
+```
+
+`src/content/blog/` 中的 `.md` 文件名必须全局唯一；构建时会报出重名或找不到目标的 Wiki 链接。因此，不应在多个文章文件夹中重复使用 `index.md`。实际文章 URL 仍保留完整目录层级，例如 `2026/my-post/my-post.md` 对应 `/blog/2026/my-post/my-post/`。
+
 Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
 
 There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.

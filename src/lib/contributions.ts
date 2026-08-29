@@ -135,12 +135,13 @@ export async function getContributions(): Promise<ContributionsData> {
       .map((updatedAt) => updatedAt.value?.getTime() ?? null)
       .filter((epoch): epoch is number => epoch !== null);
     const createdWasUpdated = createdEpoch !== null && updatedEpochs.includes(createdEpoch);
+    const createdIsOnlyUpdate = createdWasUpdated && updatedEpochs.length === 1;
 
     if (createdEpoch !== null) {
       addActivity(dayKey(createdEpoch), {
         id: post.id,
         title: post.title,
-        kind: createdWasUpdated ? 'created-updated' : 'created',
+        kind: createdWasUpdated && !createdIsOnlyUpdate ? 'created-updated' : 'created',
       });
     }
     for (const updatedEpoch of updatedEpochs) {

@@ -1,11 +1,14 @@
+import { getDeletedGitPosts } from './git-time';
 import { getPublishedPosts } from './posts';
 
 export type ActivityKind = 'created' | 'updated' | 'created-updated';
 
 export interface PostActivity {
-  id: string;
+  /** 已删除文章没有可跳转的详情页。 */
+  id: string | null;
   title: string;
   kind: ActivityKind;
+  deleted: boolean;
 }
 
 export interface ContributionCell {
@@ -122,6 +125,7 @@ function buildYear(
 
 export async function getContributions(): Promise<ContributionsData> {
   const posts = await getPublishedPosts();
+  const deletedPosts = await getDeletedGitPosts();
   const activitiesByDay = new Map<string, PostActivity[]>();
   const addActivity = (day: string, activity: PostActivity) => {
     const existing = activitiesByDay.get(day);
@@ -129,26 +133,45 @@ export async function getContributions(): Promise<ContributionsData> {
     else activitiesByDay.set(day, [activity]);
   };
 
-  for (const post of posts) {
-    const createdEpoch = post.createdAt.value?.getTime() ?? null;
-    const updatedEpochs = post.updatedAtHistory
-      .map((updatedAt) => updatedAt.value?.getTime() ?? null)
-      .filter((epoch): epoch is number => epoch !== null);
+  const addPostActivities = (
+    id: string | null,
+    title: string,
+    deleted: boolean,
+    createdEpoch: number | null,
+    updatedEpochs: number[],
+  ) => {
     const createdWasUpdated = createdEpoch !== null && updatedEpochs.includes(createdEpoch);
     const createdIsOnlyUpdate = createdWasUpdated && updatedEpochs.length === 1;
 
     if (createdEpoch !== null) {
       addActivity(dayKey(createdEpoch), {
-        id: post.id,
-        title: post.title,
+        id,
+        title,
         kind: createdWasUpdated && !createdIsOnlyUpdate ? 'created-updated' : 'created',
+        deleted,
       });
     }
     for (const updatedEpoch of updatedEpochs) {
       if (updatedEpoch !== createdEpoch) {
-        addActivity(dayKey(updatedEpoch), { id: post.id, title: post.title, kind: 'updated' });
+        addActivity(dayKey(updatedEpoch), { id, title, kind: 'updated', deleted });
       }
     }
+  };
+
+  for (const post of posts) {
+    addPostActivities(
+      post.id,
+      post.title,
+      false,
+      post.createdAt.value?.getTime() ?? null,
+      post.updatedAtHistory
+        .map((updatedAt) => updatedAt.value?.getTime() ?? null)
+        .filter((epoch): epoch is number => epoch !== null),
+    );
+  }
+
+  for (const post of deletedPosts) {
+    addPostActivities(null, post.title, true, post.createdAt, post.updatedAt);
   }
 
   const now = new Date();

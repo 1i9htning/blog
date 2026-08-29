@@ -130,14 +130,24 @@ export async function getContributions(): Promise<ContributionsData> {
   };
 
   for (const post of posts) {
-    const created = post.createdAt.value ? dayKey(post.createdAt.value.getTime()) : null;
-    const updated = post.updatedAt.value ? dayKey(post.updatedAt.value.getTime()) : null;
-    if (created !== null && created === updated) {
-      addActivity(created, { id: post.id, title: post.title, kind: 'created-updated' });
-      continue;
+    const createdEpoch = post.createdAt.value?.getTime() ?? null;
+    const updatedEpochs = post.updatedAtHistory
+      .map((updatedAt) => updatedAt.value?.getTime() ?? null)
+      .filter((epoch): epoch is number => epoch !== null);
+    const createdWasUpdated = createdEpoch !== null && updatedEpochs.includes(createdEpoch);
+
+    if (createdEpoch !== null) {
+      addActivity(dayKey(createdEpoch), {
+        id: post.id,
+        title: post.title,
+        kind: createdWasUpdated ? 'created-updated' : 'created',
+      });
     }
-    if (created !== null) addActivity(created, { id: post.id, title: post.title, kind: 'created' });
-    if (updated !== null) addActivity(updated, { id: post.id, title: post.title, kind: 'updated' });
+    for (const updatedEpoch of updatedEpochs) {
+      if (updatedEpoch !== createdEpoch) {
+        addActivity(dayKey(updatedEpoch), { id: post.id, title: post.title, kind: 'updated' });
+      }
+    }
   }
 
   const now = new Date();

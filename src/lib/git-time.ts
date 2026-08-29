@@ -2,23 +2,36 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
-const modifiedTimeCache = new Map<string, number | null>();
+const modifiedTimesCache = new Map<string, number[]>();
 const createdTimeCache = new Map<string, number | null>();
 
-export async function getGitModifiedTime(filePath: string): Promise<number | null> {
-  const cached = modifiedTimeCache.get(filePath);
+export async function getGitModifiedTimes(filePath: string): Promise<number[]> {
+  const cached = modifiedTimesCache.get(filePath);
   if (cached !== undefined) return cached;
 
-  let epochMillis: number | null = null;
+  let epochMillis: number[] = [];
   try {
-    const { stdout } = await execFileAsync('git', ['log', '-1', '--format=%ct', '--', filePath]);
-    const committedAt = Number.parseInt(stdout.trim(), 10);
-    if (Number.isFinite(committedAt) && committedAt > 0) epochMillis = committedAt * 1000;
+    const { stdout } = await execFileAsync('git', [
+      'log',
+      '--follow',
+      '--find-renames=100%',
+      '--diff-filter=AM',
+      '--format=%ct',
+      '--',
+      filePath,
+    ]);
+    epochMillis = stdout
+      .trim()
+      .split(/\s+/)
+      .map((value) => Number.parseInt(value, 10))
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .map((value) => value * 1000)
+      .sort((left, right) => right - left);
   } catch {
-    epochMillis = null;
+    epochMillis = [];
   }
 
-  modifiedTimeCache.set(filePath, epochMillis);
+  modifiedTimesCache.set(filePath, epochMillis);
   return epochMillis;
 }
 

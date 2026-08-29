@@ -5,6 +5,8 @@ export interface ResolvedTime {
   source: TimeSource;
 }
 
+export type ResolvedTimeHistory = ResolvedTime[];
+
 export function resolveCreatedAt(raw: Date | 'auto' | null | undefined): ResolvedTime {
   if (raw === undefined) return { value: null, source: 'missing' };
   if (raw === null) return { value: null, source: 'forbidden' };
@@ -12,11 +14,10 @@ export function resolveCreatedAt(raw: Date | 'auto' | null | undefined): Resolve
   return { value: raw, source: 'explicit' };
 }
 
-export function resolveUpdatedAt(raw: Date | 'auto' | null | undefined): ResolvedTime {
-  if (raw === undefined) return { value: null, source: 'missing' };
-  if (raw === null) return { value: null, source: 'forbidden' };
-  if (raw === 'auto') return { value: null, source: 'auto' };
-  return { value: raw, source: 'explicit' };
+export function resolveUpdatedAt(raw: Date | Date[] | null | undefined): ResolvedTimeHistory {
+  if (raw === undefined || raw === null) return [];
+  if (Array.isArray(raw)) return raw.map((value) => ({ value, source: 'explicit' }));
+  return [{ value: raw, source: 'explicit' }];
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');

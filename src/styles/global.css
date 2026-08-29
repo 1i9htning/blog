@@ -692,6 +692,7 @@ button { color: inherit; }
 .contrib-activity { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: .4rem 0; }
 .contrib-activity a { min-width: 0; color: var(--accent); font-size: .9rem; line-height: 1.6; overflow-wrap: anywhere; transition: color var(--duration-fast) var(--ease); }
 .contrib-activity a:hover { color: var(--accent-strong); text-decoration: underline; text-underline-offset: 3px; }
+.contrib-deleted-title { min-width: 0; color: var(--text-secondary); font-size: .9rem; line-height: 1.6; overflow-wrap: anywhere; }
 .contrib-details-kind {
   flex: none;
   padding: .1rem .5rem;

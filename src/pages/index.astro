@@ -92,7 +92,11 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
                     <ul class="contrib-day-activities">
                       {day.activities.map((activity) => (
                         <li class="contrib-activity">
-                          <a href={`/blog/${activity.id}/`}>{activity.title}</a>
+                          {activity.deleted ? (
+                            <span class="contrib-deleted-title">{activity.title}（已删除）</span>
+                          ) : (
+                            <a href={`/blog/${activity.id}/`}>{activity.title}</a>
+                          )}
                           <span class="contrib-details-kind">{activityLabel(activity.kind)}</span>
                         </li>
                       ))}
@@ -111,7 +115,7 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
   </div>
   <script id="contributions-data" type="application/json" is:inline set:html={serializedActivities}></script>
   <script>
-    interface ActivityJson { id: string; title: string; kind: string; }
+    interface ActivityJson { id: string | null; title: string; kind: string; deleted: boolean; }
     const labels: Record<string, string> = { created: '创建内容', updated: '更新内容', 'created-updated': '创建并更新内容' };
     const data = document.querySelector<HTMLScriptElement>('#contributions-data');
     const byDate = JSON.parse(data?.textContent ?? '{}') as Record<string, ActivityJson[]>;
@@ -139,13 +143,20 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
     function createRow(activity: ActivityJson): HTMLLIElement {
       const row = document.createElement('li');
       row.className = 'contrib-activity';
-      const link = document.createElement('a');
-      link.href = `/blog/${activity.id}/`;
-      link.textContent = activity.title;
       const kind = document.createElement('span');
       kind.className = 'contrib-details-kind';
       kind.textContent = labels[activity.kind] ?? '内容活动';
-      row.append(link, kind);
+      if (activity.deleted || !activity.id) {
+        const title = document.createElement('span');
+        title.className = 'contrib-deleted-title';
+        title.textContent = `${activity.title}（已删除）`;
+        row.append(title, kind);
+      } else {
+        const link = document.createElement('a');
+        link.href = `/blog/${activity.id}/`;
+        link.textContent = activity.title;
+        row.append(link, kind);
+      }
       return row;
     }
 

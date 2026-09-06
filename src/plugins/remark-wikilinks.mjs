@@ -12,7 +12,7 @@ function findMarkdownFiles(directory) {
     .flatMap((entry) => {
       const filePath = resolve(directory, entry.name);
       if (entry.isDirectory()) return findMarkdownFiles(filePath);
-      return entry.isFile() && extname(entry.name) === '.md' ? [filePath] : [];
+      return entry.isFile() && ['.md', '.mdx'].includes(extname(entry.name)) ? [filePath] : [];
     });
 }
 
@@ -21,8 +21,8 @@ function buildPostIndex() {
   const duplicates = new Map();
 
   for (const filePath of findMarkdownFiles(BLOG_ROOT)) {
-    const name = basename(filePath, '.md');
-    const id = relative(BLOG_ROOT, filePath).replaceAll('\\', '/').replace(/\.md$/, '');
+    const name = basename(filePath, extname(filePath));
+    const id = relative(BLOG_ROOT, filePath).replaceAll('\\', '/').replace(/\.(?:md|mdx)$/, '');
     const previous = postsByName.get(name);
     if (previous) {
       duplicates.set(name, [...(duplicates.get(name) ?? [previous.filePath]), filePath]);

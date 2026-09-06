@@ -77,7 +77,7 @@ function parseDeletedPostFrontmatter(source: string, filePath: string): DeletedP
   const createdAt = frontmatter.match(/^createdAt:\s*(.+?)\s*$/m)?.[1];
   const parsedCreatedAt = createdAt === undefined ? undefined : scalarValue(createdAt);
   return {
-    title: title ? scalarValue(title) : filePath.split('/').at(-1)?.replace(/\.md$/, '') ?? '已删除文章',
+    title: title ? scalarValue(title) : filePath.split('/').at(-1)?.replace(/\.(?:md|mdx)$/, '') ?? '已删除文章',
     migrated: /^migrated:\s*true\s*$/m.test(frontmatter),
     createdAt: parsedCreatedAt === undefined
       ? undefined
@@ -119,7 +119,7 @@ export async function getDeletedGitPosts(): Promise<DeletedGitPost[]> {
       if (!commit || !line.startsWith('D\t')) continue;
 
       const filePath = line.slice(2);
-      if (!filePath.startsWith('src/content/blog/') || !filePath.endsWith('.md')) continue;
+      if (!filePath.startsWith('src/content/blog/') || !/\.(?:md|mdx)$/.test(filePath)) continue;
       if (existsSync(resolve(process.cwd(), filePath))) continue;
       if (!deletedByPath.has(filePath)) deletedByPath.set(filePath, commit);
     }

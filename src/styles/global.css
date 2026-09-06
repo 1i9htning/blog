@@ -620,6 +620,22 @@ button { color: inherit; }
 .prose pre::before { content: ''; position: absolute; top: .85rem; left: 1.05rem; width: 9px; height: 9px; border-radius: 50%; background: var(--code-dot-1); box-shadow: 15px 0 0 var(--code-dot-2), 30px 0 0 var(--code-dot-3); }
 .prose pre[data-language]::after { content: attr(data-language); position: absolute; top: .78rem; right: 1.1rem; color: var(--ink-tertiary); font: .66rem/1 var(--font-mono); letter-spacing: 0; }
 .prose pre code { display: block; overflow-x: auto; scrollbar-width: thin; padding: 0; background: transparent; font-family: var(--font-mono); font-size: 1em; }
+.prose pre code[data-title]::before {
+  content: attr(data-title);
+  position: absolute;
+  z-index: 1;
+  top: .78rem;
+  left: 4.2rem;
+  display: block;
+  width: calc(100% - 5.3rem);
+  color: var(--ink-tertiary);
+  font: .66rem/1 var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+  pointer-events: none;
+}
 .prose pre span[style] { color: var(--shiki-light, #0e1116); }
 :root[data-theme='dark'] .prose pre { color: var(--shiki-dark, #f0f3f6); }
 :root[data-theme='dark'] .prose pre span[style] { color: var(--shiki-dark, #f0f3f6); }

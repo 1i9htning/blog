@@ -15,28 +15,45 @@ interface Props {
 
 const { entry } = Astro.props;
 const post = await toPostView(entry);
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
+const tocHeadings = headings.filter((heading) => heading.depth >= 2 && heading.depth <= 6);
 const created = post.createdAt.value ? formatEpochDateTime(post.createdAt.value.getTime()) : '未知';
 const updated = post.updatedAt.value ? formatEpochDateTime(post.updatedAt.value.getTime()) : '未知';
 ---
 
 <BaseLayout title={post.title}>
-  <article class="article-shell">
-    <header class="article-header">
-      <a class="back-link" href="/content/">← 返回内容</a>
-      <h1>{post.title}</h1>
-      <div class="article-meta">
-        <div class="post-tags" aria-label="内容标签">
-          {post.tags.map((tag) => <a class="tag-link" href={`/content/?tag=${encodeURIComponent(tag)}`}>{tag}</a>)}
+  <div class="article-layout">
+    <article class="article-shell">
+      <header class="article-header">
+        <a class="back-link" href="/content/">← 返回内容</a>
+        <h1>{post.title}</h1>
+        <div class="article-meta">
+          <div class="post-tags" aria-label="内容标签">
+            {post.tags.map((tag) => <a class="tag-link" href={`/content/?tag=${encodeURIComponent(tag)}`}>{tag}</a>)}
+          </div>
+          <div class="post-dates">
+            <span>创建 <time>{created}</time></span>
+            <span>更新 <time>{updated}</time></span>
+          </div>
         </div>
-        <div class="post-dates">
-          <span>创建 <time>{created}</time></span>
-          <span>更新 <time>{updated}</time></span>
-        </div>
-      </div>
-    </header>
-    <div class="prose"><Content /></div>
-  </article>
+      </header>
+      <div class="prose"><Content /></div>
+    </article>
+    {tocHeadings.length > 0 && (
+      <aside class="article-toc" aria-label="文章目录">
+        <h2>文章目录 <span>{tocHeadings.length}</span></h2>
+        <nav>
+          <ol>
+            {tocHeadings.map((heading) => (
+              <li class={`toc-depth-${heading.depth}`}>
+                <a href={`#${heading.slug}`} data-toc-link={heading.slug}>{heading.text}</a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      </aside>
+    )}
+  </div>
   <script>
     interface ContentPosition {
       url: string;
@@ -124,5 +141,23 @@ const updated = post.updatedAt.value ? formatEpochDateTime(post.updatedAt.value.
         location.assign(position.url);
       }
     });
+
+    const tocLinks = [...document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]')];
+    const articleHeadings = tocLinks
+      .map((link) => document.getElementById(link.dataset.tocLink ?? ''))
+      .filter((heading): heading is HTMLElement => heading !== null);
+
+    if (tocLinks.length > 0 && articleHeadings.length > 0 && 'IntersectionObserver' in window) {
+      const headingToLink = new Map(articleHeadings.map((heading, index) => [heading, tocLinks[index]]));
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (!visible) return;
+        tocLinks.forEach((link) => link.removeAttribute('aria-current'));
+        headingToLink.get(visible.target as HTMLElement)?.setAttribute('aria-current', 'location');
+      }, { rootMargin: '-12% 0px -72% 0px', threshold: 0 });
+      articleHeadings.forEach((heading) => observer.observe(heading));
+    }
   </script>
 </BaseLayout>

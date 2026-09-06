@@ -7,32 +7,91 @@ const links = [
   { href: '/content/', label: '内容', active: path === '/content' || path.startsWith('/blog/') },
   { href: '/tags/', label: '标签', active: path === '/tags' },
 ];
-const meActive = path === '/me';
 const avatarSrc = await getAvatarSrc();
 ---
 
 <header class="site-header">
   <div class="navbar-inner">
     <div class="brand-area">
-      <span class:list={['brand-link', { active: meActive }]}>
+      <div class="brand-lockup">
         <img class="brand-avatar" src={avatarSrc} alt="" width="28" height="28" />
         <span class="brand-text">Li9htning's blog</span>
-      </span>
+      </div>
     </div>
-    <nav class="main-nav" aria-label="主导航">
-      {links.map((link) => (
-        <a class:list={['nav-link', { active: link.active }]} href={link.href} aria-current={link.active ? 'page' : undefined}>
-          {link.label}
-        </a>
-      ))}
-    </nav>
-    <button id="theme-toggle" class="icon-button" type="button" aria-label="切换主题" title="切换主题">
-      <svg class="theme-icon moon-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.2 15.4A8.8 8.8 0 0 1 8.6 3.8 9 9 0 1 0 20.2 15.4Z" /></svg>
-      <svg class="theme-icon sun-icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
-    </button>
-    <form id="nav-search-form" class="nav-search" action="/content/" method="get" role="search">
-      <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
-      <input id="nav-search-input" type="search" name="search" placeholder="搜索标题" aria-label="搜索标题" autocomplete="off" spellcheck="false" />
-    </form>
+    <div class="nav-cluster">
+      <nav class="main-nav" aria-label="主导航">
+        {links.map((link) => (
+          <a class:list={['nav-link', { active: link.active }]} href={link.href} aria-current={link.active ? 'page' : undefined}>
+            {link.label}
+          </a>
+        ))}
+      </nav>
+      <form id="nav-search-form" class="nav-search" action="/content/" method="get" role="search">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+        <input id="nav-search-input" type="search" name="search" placeholder="搜索标题" aria-label="搜索标题" autocomplete="off" spellcheck="false" />
+      </form>
+      <button id="mobile-search-trigger" class="nav-search-button" type="button" aria-label="搜索内容" title="搜索内容" aria-haspopup="dialog" aria-controls="mobile-search-dialog">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+      </button>
+    </div>
   </div>
 </header>
+
+<div id="mobile-search-dialog" class="mobile-search-dialog" role="dialog" aria-modal="true" aria-labelledby="mobile-search-title" hidden>
+  <div class="mobile-search-backdrop" data-search-close></div>
+  <form class="mobile-search-panel" action="/content/" method="get" role="search">
+    <div class="mobile-search-panel-heading">
+      <h2 id="mobile-search-title">搜索内容</h2>
+      <button class="mobile-search-close" type="button" aria-label="关闭搜索" title="关闭搜索" data-search-close>
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg>
+      </button>
+    </div>
+    <label class="mobile-search-field">
+      <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+      <input id="mobile-search-input" type="search" name="search" placeholder="输入标题关键词" aria-label="搜索标题" autocomplete="off" spellcheck="false" />
+    </label>
+  </form>
+</div>
+
+<script>
+  const trigger = document.querySelector<HTMLButtonElement>('#mobile-search-trigger');
+  const dialog = document.querySelector<HTMLElement>('#mobile-search-dialog');
+  const input = document.querySelector<HTMLInputElement>('#mobile-search-input');
+  const closeButtons = [...document.querySelectorAll<HTMLElement>('[data-search-close]')];
+  const closeButton = document.querySelector<HTMLButtonElement>('.mobile-search-close');
+  let restoreFocus: HTMLElement | null = null;
+
+  function closeSearch(): void {
+    if (!dialog || dialog.hidden) return;
+    dialog.hidden = true;
+    restoreFocus?.focus();
+    restoreFocus = null;
+  }
+
+  function openSearch(): void {
+    if (!dialog || !trigger) return;
+    restoreFocus = trigger;
+    dialog.hidden = false;
+    requestAnimationFrame(() => input?.focus());
+  }
+
+  trigger?.addEventListener('click', openSearch);
+  closeButtons.forEach((button) => button.addEventListener('click', closeSearch));
+  dialog?.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeSearch();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [input, closeButton].filter((element): element is HTMLElement => element !== null && !element.hidden);
+    if (focusable.length === 0) return;
+    const current = document.activeElement;
+    const index = focusable.indexOf(current as HTMLElement);
+    const nextIndex = event.shiftKey
+      ? (index <= 0 ? focusable.length - 1 : index - 1)
+      : (index === focusable.length - 1 ? 0 : index + 1);
+    event.preventDefault();
+    focusable[nextIndex]?.focus();
+  });
+</script>

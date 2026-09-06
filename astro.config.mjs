@@ -35,8 +35,7 @@ export default defineConfig({
     processor: satteri({ mdastPlugins: [wikiLinksPlugin] }),
     shikiConfig: {
       themes: {
-        light: 'github-light-high-contrast',
-        dark: 'github-dark-high-contrast',
+        light: 'github-light',
       },
       defaultColor: false,
       transformers: [codeBlockTitleTransformer()],

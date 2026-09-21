@@ -119,6 +119,8 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
   </div>
   <script id="contributions-data" type="application/json" is:inline set:html={serializedActivities}></script>
   <script>
+    import { shanghaiDayKey } from '../lib/time';
+
     interface ActivityAnnotationJson { type: 'renamed' | 'merged'; targetId: string; targetTitle: string; }
     interface ActivityJson {
       id: string | null;
@@ -201,7 +203,7 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
     const scroll = document.querySelector<HTMLElement>('#contrib-scroll');
     const yearGrids = [...document.querySelectorAll<HTMLElement>('.contrib-year[data-year]')];
     const yearButtons = [...document.querySelectorAll<HTMLButtonElement>('.contrib-year-option[data-year]')];
-    let activeYear = yearGrids.find((grid) => !grid.hidden)?.dataset.year ?? `${new Date().getFullYear()}`;
+    let activeYear = yearGrids.find((grid) => !grid.hidden)?.dataset.year ?? shanghaiDayKey(Date.now()).slice(0, 4);
 
     function activeTotal(): number {
       const grid = yearGrids.find((item) => item.dataset.year === activeYear);

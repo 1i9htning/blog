@@ -1,6 +1,7 @@
 import { getRegistryHistory } from './git-time';
 import { getAllRegistryPosts, getPublishedPosts } from './posts';
 import { REGISTRY_FILE, getIgnoredCommits, getRegistry, type RegistryPost } from './registry';
+import { shanghaiDayKey } from './time';
 import { validateIgnoredCommits } from './validate';
 
 export type ActivityKind = 'created' | 'updated' | 'created-updated' | 'renamed' | 'merged' | 'deleted';
@@ -71,16 +72,10 @@ export interface ContributionsData {
 }
 
 const DAY_MS = 86400000;
-const SHANGHAI_OFFSET_MS = 8 * 3600000;
 
-function dayKey(time: number): string {
-  return new Date(time).toISOString().slice(0, 10);
-}
-
-/** 上海时区（无夏令时）的自然日，用于合并事件的同日聚合。 */
-function shanghaiDayKey(time: number): string {
-  return new Date(time + SHANGHAI_OFFSET_MS).toISOString().slice(0, 10);
-}
+// 活动归日统一为上海墙钟（time.shanghaiDayKey）：格子日键、事件同日聚合、
+// 今天/今年的归属全部同口径，与构建机器时区无关。
+const dayKey = shanghaiDayKey;
 
 function levelOf(count: number): number {
   return count >= 4 ? 4 : count;
@@ -164,6 +159,9 @@ function buildYear(
   todayTime: number,
   currentYear: number,
 ): YearContributions {
+  // 网格按历法日期容器计算：Date.UTC 构造的时间戳只作 Y-M-D 载体，
+  // getUTCDay/getUTCDate 作用于容器是纯公历运算（星期几、月首判定），与时区无关；
+  // 时区口径完全由 epoch → 日键的上海归日（dayKey）决定。
   const firstTime = Date.UTC(year, 0, 1);
   const lastTime = Date.UTC(year, 11, 31);
   // 网格自 1 月 1 日所在周的上一个周日开始，至 12 月 31 日所在周的周六结束
@@ -362,7 +360,7 @@ export async function getContributions(): Promise<ContributionsData> {
   const mergeGroups = new Map<string, { targetId: string; day: string; names: string[] }>();
   for (const event of history.statusEvents) {
     if (event.status !== 'merged' || event.targetId === undefined) continue;
-    const day = shanghaiDayKey(event.epoch);
+    const day = dayKey(event.epoch);
     const name = history.titleAt(event.id, event.epoch)
       ?? registry.posts.get(event.id)?.title
       ?? event.id;
@@ -400,9 +398,10 @@ export async function getContributions(): Promise<ContributionsData> {
 
   for (const activities of activitiesByDay.values()) activities.sort(compareActivities);
 
-  const now = new Date();
-  const currentYear = now.getUTCFullYear();
-  const todayTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  // 今天/今年同样按上海墙钟取，future 判定、年份归属与格子日键同口径；
+  // Date.UTC 在这里只是历法日期容器（见 buildYear 注释）。
+  const [currentYear, currentMonth, currentDay] = dayKey(Date.now()).split('-').map(Number);
+  const todayTime = Date.UTC(currentYear, currentMonth - 1, currentDay);
 
   const yearSet = new Set<number>([currentYear]);
   for (const day of activitiesByDay.keys()) {

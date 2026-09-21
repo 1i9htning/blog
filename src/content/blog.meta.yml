@@ -1,4 +1,5 @@
-ignoredCommits: []
+ignoredCommits:
+  - f9139e81a680f498c154c827277f7c4d74d8431b  # 迁移提交：元数据分离与文件夹搬迁，不计入更新时间
 posts:
   cnusx5:
     title: bind函数

@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { activityLabel, formatFullDate, getContributions, type PostActivity } from '../lib/contributions';
+import { activityLabel, activityParts, formatFullDate, getContributions, type PostActivity } from '../lib/contributions';
 
 const { years } = await getContributions();
 const current = years[0];
@@ -92,11 +92,15 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
                     <ul class="contrib-day-activities">
                       {day.activities.map((activity) => (
                         <li class="contrib-activity">
-                          {activity.deleted ? (
-                            <span class="contrib-deleted-title">{activity.title}（已删除）</span>
-                          ) : (
-                            <a href={`/blog/${activity.id}/`}>{activity.title}</a>
-                          )}
+                          <span class="contrib-activity-text">
+                            {activityParts(activity).map((part) => part.href !== undefined ? (
+                              <a href={part.href}>{part.text}</a>
+                            ) : part.gray === true ? (
+                              <span class="contrib-deleted-title">{part.text}</span>
+                            ) : (
+                              part.text
+                            ))}
+                          </span>
                           <span class="contrib-details-kind">{activityLabel(activity.kind)}</span>
                         </li>
                       ))}
@@ -115,8 +119,77 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
   </div>
   <script id="contributions-data" type="application/json" is:inline set:html={serializedActivities}></script>
   <script>
-    interface ActivityJson { id: string | null; title: string; kind: string; deleted: boolean; }
-    const labels: Record<string, string> = { created: '创建内容', updated: '更新内容', 'created-updated': '创建并更新内容' };
+    interface ActivityAnnotationJson { type: 'renamed' | 'merged'; targetId: string; targetTitle: string; }
+    interface ActivityJson {
+      id: string | null;
+      title: string;
+      kind: string;
+      deleted: boolean;
+      to?: string;
+      linkId?: string | null;
+      annotation?: ActivityAnnotationJson;
+    }
+    interface ActivityPartJson { text: string; href?: string; gray?: boolean; }
+    const labels: Record<string, string> = {
+      created: '创建内容',
+      updated: '更新内容',
+      'created-updated': '创建并更新内容',
+      renamed: '改名',
+      merged: '合并',
+      deleted: '删除',
+    };
+
+    function annotationParts(annotation: ActivityAnnotationJson): ActivityPartJson[] {
+      return [
+        { text: `（已${annotation.type === 'renamed' ? '改名' : '合并'}至 `, gray: true },
+        { text: annotation.targetTitle, href: `/blog/${annotation.targetId}/` },
+        { text: '）', gray: true },
+      ];
+    }
+
+    // 与服务端 activityParts 同一套规则：把一行活动展开为文本/链接片段
+    function activityParts(activity: ActivityJson): ActivityPartJson[] {
+      const parts: ActivityPartJson[] = [];
+      if (activity.kind === 'deleted') {
+        parts.push({ text: `删除 ${activity.title}`, gray: true });
+        return parts;
+      }
+      if (activity.kind === 'renamed') {
+        if (activity.deleted) {
+          parts.push({ text: `${activity.title} 改名至 ${activity.to ?? ''}（已删除）`, gray: true });
+          return parts;
+        }
+        if (activity.linkId) {
+          parts.push(
+            { text: `${activity.title} 改名至 `, gray: true },
+            { text: activity.to ?? '', href: `/blog/${activity.linkId}/` },
+          );
+        } else {
+          parts.push({ text: `${activity.title} 改名至 ${activity.to ?? ''}`, gray: true });
+        }
+        if (activity.annotation) parts.push(...annotationParts(activity.annotation));
+        return parts;
+      }
+      if (activity.kind === 'merged') {
+        if (activity.linkId) {
+          parts.push(
+            { text: `${activity.title} 合并至 `, gray: true },
+            { text: activity.to ?? '', href: `/blog/${activity.linkId}/` },
+          );
+        } else {
+          parts.push({ text: `${activity.title} 合并至 ${activity.to ?? ''}`, gray: true });
+        }
+        return parts;
+      }
+      if (activity.deleted) {
+        parts.push({ text: `${activity.title}（已删除）`, gray: true });
+        return parts;
+      }
+      if (activity.linkId) parts.push({ text: activity.title, href: `/blog/${activity.linkId}/` });
+      else parts.push({ text: activity.title, gray: true });
+      if (activity.annotation) parts.push(...annotationParts(activity.annotation));
+      return parts;
+    }
     const data = document.querySelector<HTMLScriptElement>('#contributions-data');
     const byDate = JSON.parse(data?.textContent ?? '{}') as Record<string, ActivityJson[]>;
     const subtitle = document.querySelector<HTMLElement>('#contrib-subtitle');
@@ -143,20 +216,27 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
     function createRow(activity: ActivityJson): HTMLLIElement {
       const row = document.createElement('li');
       row.className = 'contrib-activity';
+      const text = document.createElement('span');
+      text.className = 'contrib-activity-text';
+      for (const part of activityParts(activity)) {
+        if (part.href !== undefined) {
+          const link = document.createElement('a');
+          link.href = part.href;
+          link.textContent = part.text;
+          text.append(link);
+        } else if (part.gray === true) {
+          const span = document.createElement('span');
+          span.className = 'contrib-deleted-title';
+          span.textContent = part.text;
+          text.append(span);
+        } else {
+          text.append(document.createTextNode(part.text));
+        }
+      }
       const kind = document.createElement('span');
       kind.className = 'contrib-details-kind';
       kind.textContent = labels[activity.kind] ?? '内容活动';
-      if (activity.deleted || !activity.id) {
-        const title = document.createElement('span');
-        title.className = 'contrib-deleted-title';
-        title.textContent = `${activity.title}（已删除）`;
-        row.append(title, kind);
-      } else {
-        const link = document.createElement('a');
-        link.href = `/blog/${activity.id}/`;
-        link.textContent = activity.title;
-        row.append(link, kind);
-      }
+      row.append(text, kind);
       return row;
     }
 

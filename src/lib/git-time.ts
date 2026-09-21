@@ -1,160 +1,43 @@
 import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { parse as parseYaml } from 'yaml';
+import { parseShanghaiTime } from './registry';
 
 const execFileAsync = promisify(execFile);
-const modifiedTimesCache = new Map<string, number[]>();
-const createdTimeCache = new Map<string, number | null>();
-const deletedPostsCache = new Map<string, DeletedGitPost[]>();
+const contentCommitTimesCache = new Map<string, number[]>();
+const firstCommitTimeCache = new Map<string, number | null>();
+const registryHistoryCache = new Map<string, RegistryHistory>();
 
-export interface DeletedGitPost {
-  /** 已删除 Markdown 的 Git 相对路径。 */
-  filePath: string;
-  /** 删除前文章的标题。 */
-  title: string;
-  /** 迁移文章的首次提交仅代表导入。 */
-  migrated: boolean;
-  /** Git 创建时间；迁移文章不从 Git 推断创建时间。 */
-  createdAt: number | null;
-  /** Git 内容更新时间，按从早到晚排列。 */
-  updatedAt: number[];
+interface GitCommit {
+  hash: string;
+  /** epoch 毫秒。 */
+  epoch: number;
 }
 
-interface DeletedPostFrontmatter {
-  title: string;
-  migrated: boolean;
-  /** undefined 表示省略或 auto；null 表示显式未知。 */
-  createdAt: number | null | undefined;
-  updatedAt: number[];
+function cacheKeyFor(filePath: string, ignore: Set<string>): string {
+  return `${filePath}\n${[...ignore].sort().join(',')}`;
 }
 
-const shanghaiWallTime = /^(\d{4}-\d{2}-\d{2})(?:[ T]([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d(?:\.\d+)?))?)?$/;
-
-function frontmatterBlock(source: string): string {
-  return source.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
-}
-
-function scalarValue(value: string): string {
-  const trimmed = value.trim();
-  const quoted = trimmed.match(/^(?:"([\s\S]*)"|'([\s\S]*)')$/);
-  return quoted?.[1] ?? quoted?.[2] ?? trimmed;
-}
-
-function parseShanghaiTime(value: string): number | null {
-  const match = scalarValue(value).match(shanghaiWallTime);
-  if (!match) return null;
-
-  const [, date, hour = '00', minute = '00', second = '00'] = match;
-  const calendarDate = new Date(`${date}T00:00:00Z`);
-  if (!Number.isFinite(calendarDate.getTime()) || calendarDate.toISOString().slice(0, 10) !== date) return null;
-
-  const timestamp = new Date(`${date}T${hour}:${minute}:${second}+08:00`).getTime();
-  return Number.isFinite(timestamp) ? timestamp : null;
-}
-
-function parseUpdatedTimes(frontmatter: string): number[] {
-  const lines = frontmatter.split(/\r?\n/);
-  const index = lines.findIndex((line) => /^updatedAt:\s*/.test(line));
-  if (index === -1) return [];
-
-  const value = lines[index].replace(/^updatedAt:\s*/, '').trim();
-  const rawTimes = value.startsWith('[') && value.endsWith(']')
-    ? value.slice(1, -1).split(',')
-    : value
-      ? [value]
-      : lines.slice(index + 1)
-        .map((line) => line.match(/^\s*-\s+(.+?)\s*$/)?.[1])
-        .filter((time): time is string => typeof time === 'string');
-  return rawTimes
-    .map((time) => parseShanghaiTime(time))
-    .filter((time): time is number => time !== null);
-}
-
-function parseDeletedPostFrontmatter(source: string, filePath: string): DeletedPostFrontmatter {
-  const frontmatter = frontmatterBlock(source);
-  const title = frontmatter.match(/^title:\s*(.+?)\s*$/m)?.[1];
-  const createdAt = frontmatter.match(/^createdAt:\s*(.+?)\s*$/m)?.[1];
-  const parsedCreatedAt = createdAt === undefined ? undefined : scalarValue(createdAt);
-  return {
-    title: title ? scalarValue(title) : filePath.split('/').at(-1)?.replace(/\.(?:md|mdx)$/, '') ?? '已删除文章',
-    migrated: /^migrated:\s*true\s*$/m.test(frontmatter),
-    createdAt: parsedCreatedAt === undefined
-      ? undefined
-      : /^(?:auto|null)$/i.test(parsedCreatedAt)
-        ? parsedCreatedAt.toLowerCase() === 'null' ? null : undefined
-        : parseShanghaiTime(parsedCreatedAt),
-    updatedAt: parseUpdatedTimes(frontmatter),
-  };
+/** 解析 git log --format=%H%x00%ct 的输出；ignore 中的 hash 被剔除。 */
+function parseCommitLog(stdout: string, ignore: Set<string>): GitCommit[] {
+  const commits: GitCommit[] = [];
+  for (const line of stdout.split(/\r?\n/)) {
+    const [hash, seconds] = line.split('\0');
+    if (!hash || ignore.has(hash)) continue;
+    const epochSeconds = Number.parseInt(seconds ?? '', 10);
+    if (!Number.isFinite(epochSeconds) || epochSeconds <= 0) continue;
+    commits.push({ hash, epoch: epochSeconds * 1000 });
+  }
+  return commits;
 }
 
 /**
- * 找出当前工作区已不存在、但当前分支历史中曾被删除的文章。
- * 只接受 D 状态；精确重命名（R100）不会被当作删除。
+ * 正文文件的 content commit 时间（epoch 毫秒，降序）。
+ * 跟随精确重命名（R100），只看新增/修改；注册表、images 等路径的 commit 不在此列。
  */
-export async function getDeletedGitPosts(): Promise<DeletedGitPost[]> {
-  const cacheKey = process.cwd();
-  const cached = deletedPostsCache.get(cacheKey);
-  if (cached !== undefined) return cached;
-
-  const deletedByPath = new Map<string, string>();
-  try {
-    const { stdout } = await execFileAsync('git', [
-      '-c',
-      'core.quotepath=false',
-      'log',
-      '--find-renames=100%',
-      '--diff-filter=D',
-      '--format=%H',
-      '--name-status',
-      '--',
-      'src/content/blog',
-    ]);
-    let commit = '';
-    for (const line of stdout.split(/\r?\n/)) {
-      if (/^[0-9a-f]{40}$/.test(line)) {
-        commit = line;
-        continue;
-      }
-      if (!commit || !line.startsWith('D\t')) continue;
-
-      const filePath = line.slice(2);
-      if (!filePath.startsWith('src/content/blog/') || !/\.(?:md|mdx)$/.test(filePath)) continue;
-      if (existsSync(resolve(process.cwd(), filePath))) continue;
-      if (!deletedByPath.has(filePath)) deletedByPath.set(filePath, commit);
-    }
-  } catch {
-    // 没有 Git 历史时，不显示已删除文章的活动。
-  }
-
-  const posts = await Promise.all([...deletedByPath].map(async ([filePath, deletedCommit]) => {
-    try {
-      const { stdout: source } = await execFileAsync('git', ['show', `${deletedCommit}^:${filePath}`]);
-      const frontmatter = parseDeletedPostFrontmatter(source, filePath);
-      const gitUpdates = await getGitModifiedTimes(filePath);
-      const contentUpdateTimes = frontmatter.migrated ? gitUpdates.slice(0, -1) : gitUpdates;
-      return {
-        filePath,
-        title: frontmatter.title,
-        migrated: frontmatter.migrated,
-        createdAt: frontmatter.migrated
-          ? frontmatter.createdAt ?? null
-          : frontmatter.createdAt === undefined ? await getGitCreatedTime(filePath) : frontmatter.createdAt,
-        updatedAt: [...new Set([...frontmatter.updatedAt, ...contentUpdateTimes])]
-          .sort((left, right) => left - right),
-      };
-    } catch {
-      return null;
-    }
-  }));
-
-  const resolved = posts.filter((post): post is DeletedGitPost => post !== null);
-  deletedPostsCache.set(cacheKey, resolved);
-  return resolved;
-}
-
-export async function getGitModifiedTimes(filePath: string): Promise<number[]> {
-  const cached = modifiedTimesCache.get(filePath);
+export async function getContentCommitTimes(filePath: string, ignore: Set<string>): Promise<number[]> {
+  const cacheKey = cacheKeyFor(filePath, ignore);
+  const cached = contentCommitTimesCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
   let epochMillis: number[] = [];
@@ -164,38 +47,183 @@ export async function getGitModifiedTimes(filePath: string): Promise<number[]> {
       '--follow',
       '--find-renames=100%',
       '--diff-filter=AM',
-      '--format=%ct',
+      '--format=%H%x00%ct',
       '--',
       filePath,
     ]);
-    epochMillis = stdout
-      .trim()
-      .split(/\s+/)
-      .map((value) => Number.parseInt(value, 10))
-      .filter((value) => Number.isFinite(value) && value > 0)
-      .map((value) => value * 1000)
+    epochMillis = parseCommitLog(stdout, ignore)
+      .map((commit) => commit.epoch)
       .sort((left, right) => right - left);
   } catch {
     epochMillis = [];
   }
 
-  modifiedTimesCache.set(filePath, epochMillis);
+  contentCommitTimesCache.set(cacheKey, epochMillis);
   return epochMillis;
 }
 
-export async function getGitCreatedTime(filePath: string): Promise<number | null> {
-  const cached = createdTimeCache.get(filePath);
+/**
+ * 文件的首次提交时间（epoch 毫秒）；不跟随重命名，忽略名单中的 commit 不算。
+ * 查不到（无 Git 历史）时返回 null。
+ */
+export async function getFirstCommitTime(filePath: string, ignore: Set<string>): Promise<number | null> {
+  const cacheKey = cacheKeyFor(filePath, ignore);
+  const cached = firstCommitTimeCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
   let epochMillis: number | null = null;
   try {
-    const { stdout } = await execFileAsync('git', ['log', '--reverse', '--format=%ct', '--', filePath]);
-    const committedAt = Number.parseInt(stdout.trim().split(/\s+/)[0] ?? '', 10);
-    if (Number.isFinite(committedAt) && committedAt > 0) epochMillis = committedAt * 1000;
+    const { stdout } = await execFileAsync('git', ['log', '--format=%H%x00%ct', '--', filePath]);
+    const commits = parseCommitLog(stdout, ignore);
+    if (commits.length > 0) epochMillis = Math.min(...commits.map((commit) => commit.epoch));
   } catch {
     epochMillis = null;
   }
 
-  createdTimeCache.set(filePath, epochMillis);
+  firstCommitTimeCache.set(cacheKey, epochMillis);
   return epochMillis;
+}
+
+export interface RenameEvent {
+  id: string;
+  from: string;
+  to: string;
+  /** 事件时间（epoch 毫秒），取产生变化的 commit 时间。 */
+  epoch: number;
+}
+
+export interface StatusEvent {
+  id: string;
+  status: 'deleted' | 'merged';
+  /** status 为 merged 时取新状态的 mergedInto。 */
+  targetId?: string;
+  /** 事件时间（epoch 毫秒）；注册表里的 deletedAt/mergedAt 可显式覆盖 commit 时间。 */
+  epoch: number;
+}
+
+export interface RegistryHistory {
+  renames: RenameEvent[];
+  statusEvents: StatusEvent[];
+  /** commit 时间 ≤ epoch 的最新快照里该 id 的标题；无则 null。 */
+  titleAt(id: string, epoch: number): string | null;
+}
+
+interface SnapshotPost {
+  title: string;
+  status: 'active' | 'deleted' | 'merged';
+  mergedInto: string | undefined;
+  deletedAt: number | undefined;
+  mergedAt: number | undefined;
+}
+
+interface RegistrySnapshot {
+  epoch: number;
+  /** 忽略名单中的 commit 不产生事件，但状态链照常经过它。 */
+  ignored: boolean;
+  posts: Map<string, SnapshotPost>;
+}
+
+function snapshotTime(value: unknown): number | undefined {
+  if (value instanceof Date) {
+    const epoch = value.getTime();
+    return Number.isFinite(epoch) ? epoch : undefined;
+  }
+  if (typeof value === 'string') return parseShanghaiTime(value) ?? undefined;
+  return undefined;
+}
+
+/** 宽松解析注册表快照；解析失败返回 null（该快照跳过，不进状态链）。 */
+function parseSnapshotPosts(source: string): Map<string, SnapshotPost> | null {
+  let raw: unknown;
+  try {
+    raw = parseYaml(source);
+  } catch {
+    return null;
+  }
+  const posts = (raw as { posts?: unknown } | null)?.posts;
+  const result = new Map<string, SnapshotPost>();
+  if (typeof posts !== 'object' || posts === null) return result;
+  for (const [id, value] of Object.entries(posts)) {
+    if (typeof value !== 'object' || value === null) continue;
+    const record = value as Record<string, unknown>;
+    result.set(id, {
+      title: typeof record.title === 'string' ? record.title : '',
+      status: record.status === 'deleted' || record.status === 'merged' ? record.status : 'active',
+      mergedInto: typeof record.mergedInto === 'string' ? record.mergedInto : undefined,
+      deletedAt: snapshotTime(record.deletedAt),
+      mergedAt: snapshotTime(record.mergedAt),
+    });
+  }
+  return result;
+}
+
+/**
+ * 推导注册表的 Git 历史：按 commit 时间升序重放快照，产出标题变更与状态变更事件。
+ * 忽略名单中的 commit 不产生事件，但状态链照常经过它；
+ * 注册表尚无 Git 历史（未提交）时返回空事件、titleAt 恒 null，不抛错。
+ */
+export async function getRegistryHistory(registryPath: string, ignore: Set<string>): Promise<RegistryHistory> {
+  const cacheKey = cacheKeyFor(registryPath, ignore);
+  const cached = registryHistoryCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const snapshots: RegistrySnapshot[] = [];
+  try {
+    const { stdout } = await execFileAsync('git', [
+      'log',
+      '--reverse',
+      '--format=%H%x00%ct',
+      '--',
+      registryPath,
+    ]);
+    for (const commit of parseCommitLog(stdout, new Set())) {
+      let posts: Map<string, SnapshotPost> | null = null;
+      try {
+        const { stdout: source } = await execFileAsync('git', ['show', `${commit.hash}:${registryPath}`]);
+        posts = parseSnapshotPosts(source);
+      } catch {
+        posts = null;
+      }
+      if (posts === null) continue; // 解析失败的快照跳过
+      snapshots.push({ epoch: commit.epoch, ignored: ignore.has(commit.hash), posts });
+    }
+  } catch {
+    // 没有 Git 历史时，返回空事件链。
+  }
+
+  const renames: RenameEvent[] = [];
+  const statusEvents: StatusEvent[] = [];
+  for (let index = 1; index < snapshots.length; index++) {
+    const current = snapshots[index];
+    if (current.ignored) continue;
+    const previous = snapshots[index - 1];
+    for (const [id, post] of current.posts) {
+      const before = previous.posts.get(id);
+      if (before !== undefined && before.title !== post.title) {
+        renames.push({ id, from: before.title, to: post.title, epoch: current.epoch });
+      }
+      // 首次出现即 deleted/merged（注册表补登记历史文章）也视为状态事件
+      if ((before === undefined || before.status !== post.status)
+        && (post.status === 'deleted' || post.status === 'merged')) {
+        const override = post.status === 'deleted' ? post.deletedAt : post.mergedAt;
+        statusEvents.push({ id, status: post.status, targetId: post.mergedInto, epoch: override ?? current.epoch });
+      }
+    }
+  }
+
+  const history: RegistryHistory = {
+    renames,
+    statusEvents,
+    titleAt(id, epoch) {
+      for (let index = snapshots.length - 1; index >= 0; index--) {
+        if (snapshots[index].epoch > epoch) continue;
+        return snapshots[index].posts.get(id)?.title ?? null;
+      }
+      // 早于首个快照：状态向过去延伸，取最早已知快照（注册表建立之前的活动也处于该状态）。
+      return snapshots[0]?.posts.get(id)?.title ?? null;
+    },
+  };
+
+  registryHistoryCache.set(cacheKey, history);
+  return history;
 }

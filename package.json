@@ -10,13 +10,17 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "new": "node scripts/new-post.mjs",
+    "migrate": "node scripts/migrate-to-registry.mjs",
+    "verify:migration": "node scripts/verify-migration.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.4.0",
     "@astrojs/mdx": "^8.0.0",
     "astro": "^7.2.8",
-    "sharp": "0.35.4"
+    "sharp": "0.35.4",
+    "yaml": "^2.9.1"
   },
   "allowScripts": {
     "esbuild": true

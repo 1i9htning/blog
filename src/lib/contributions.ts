@@ -1,14 +1,38 @@
-import { getDeletedGitPosts } from './git-time';
-import { getPublishedPosts } from './posts';
+import { getRegistryHistory } from './git-time';
+import { getAllRegistryPosts, getPublishedPosts } from './posts';
+import { REGISTRY_FILE, getIgnoredCommits, getRegistry, type RegistryPost } from './registry';
+import { validateIgnoredCommits } from './validate';
 
-export type ActivityKind = 'created' | 'updated' | 'created-updated';
+export type ActivityKind = 'created' | 'updated' | 'created-updated' | 'renamed' | 'merged' | 'deleted';
+
+export interface ActivityAnnotation {
+  type: 'renamed' | 'merged';
+  targetId: string;
+  targetTitle: string;
+}
 
 export interface PostActivity {
-  /** 已删除文章没有可跳转的详情页。 */
+  /** 活动所属文章的注册表 id；聚合行（merged）为 null。是否可跳转由 linkId 决定。 */
   id: string | null;
   title: string;
   kind: ActivityKind;
+  /** 文章已删除：标题渲染为纯文本并带“（已删除）”后缀。 */
   deleted: boolean;
+  /** renamed 事件的新名字 / merged 事件的目标名。 */
+  to?: string;
+  /** 标题（或 to）链接到 /blog/<linkId>/；null 或缺省表示纯文本。 */
+  linkId?: string | null;
+  /** 后缀标注：“（已改名至 X）”或“（已合并至 X）”，X 为链接。 */
+  annotation?: ActivityAnnotation;
+}
+
+/** 渲染用行片段：纯文本或链接，灰字复用 contrib-deleted-title 样式。 */
+export interface ActivityPart {
+  text: string;
+  /** 链接地址（/blog/<id>/）；缺省为纯文本。 */
+  href?: string;
+  /** 灰字片段（历史名称、连接词、括号标注等不可点文本）。 */
+  gray?: boolean;
 }
 
 export interface ContributionCell {
@@ -47,9 +71,15 @@ export interface ContributionsData {
 }
 
 const DAY_MS = 86400000;
+const SHANGHAI_OFFSET_MS = 8 * 3600000;
 
 function dayKey(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
+}
+
+/** 上海时区（无夏令时）的自然日，用于合并事件的同日聚合。 */
+function shanghaiDayKey(time: number): string {
+  return new Date(time + SHANGHAI_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 function levelOf(count: number): number {
@@ -64,7 +94,68 @@ export function formatFullDate(date: string): string {
 export function activityLabel(kind: ActivityKind): string {
   if (kind === 'created') return '创建内容';
   if (kind === 'updated') return '更新内容';
-  return '创建并更新内容';
+  if (kind === 'created-updated') return '创建并更新内容';
+  if (kind === 'renamed') return '改名';
+  if (kind === 'merged') return '合并';
+  return '删除';
+}
+
+/** 行内标注后缀：“（已改名至 X）”或“（已合并至 X）”，X 为链接。 */
+function annotationParts(annotation: ActivityAnnotation): ActivityPart[] {
+  return [
+    { text: `（已${annotation.type === 'renamed' ? '改名' : '合并'}至 `, gray: true },
+    { text: annotation.targetTitle, href: `/blog/${annotation.targetId}/` },
+    { text: '）', gray: true },
+  ];
+}
+
+/** 把一行活动展开为渲染片段序列；服务端模板与客户端脚本共用同一套规则。 */
+export function activityParts(activity: PostActivity): ActivityPart[] {
+  const parts: ActivityPart[] = [];
+
+  if (activity.kind === 'deleted') {
+    parts.push({ text: `删除 ${activity.title}`, gray: true });
+    return parts;
+  }
+
+  if (activity.kind === 'renamed') {
+    if (activity.deleted) {
+      parts.push({ text: `${activity.title} 改名至 ${activity.to ?? ''}（已删除）`, gray: true });
+      return parts;
+    }
+    if (activity.linkId) {
+      parts.push(
+        { text: `${activity.title} 改名至 `, gray: true },
+        { text: activity.to ?? '', href: `/blog/${activity.linkId}/` },
+      );
+    } else {
+      parts.push({ text: `${activity.title} 改名至 ${activity.to ?? ''}`, gray: true });
+    }
+    if (activity.annotation) parts.push(...annotationParts(activity.annotation));
+    return parts;
+  }
+
+  if (activity.kind === 'merged') {
+    if (activity.linkId) {
+      parts.push(
+        { text: `${activity.title} 合并至 `, gray: true },
+        { text: activity.to ?? '', href: `/blog/${activity.linkId}/` },
+      );
+    } else {
+      parts.push({ text: `${activity.title} 合并至 ${activity.to ?? ''}`, gray: true });
+    }
+    return parts;
+  }
+
+  // created / updated / created-updated：标题加可选标注后缀
+  if (activity.deleted) {
+    parts.push({ text: `${activity.title}（已删除）`, gray: true });
+    return parts;
+  }
+  if (activity.linkId) parts.push({ text: activity.title, href: `/blog/${activity.linkId}/` });
+  else parts.push({ text: activity.title, gray: true });
+  if (activity.annotation) parts.push(...annotationParts(activity.annotation));
+  return parts;
 }
 
 function buildYear(
@@ -123,9 +214,38 @@ function buildYear(
   return { year, weeks, cells, months, total, current: year === currentYear, activityDays };
 }
 
+/** 同一天内行的确定性排序：先按事件类别，再按标题、目标名、文章 id。 */
+const kindOrder: Record<ActivityKind, number> = {
+  created: 0,
+  'created-updated': 1,
+  updated: 2,
+  renamed: 3,
+  merged: 4,
+  deleted: 5,
+};
+
+function compareActivities(left: PostActivity, right: PostActivity): number {
+  return kindOrder[left.kind] - kindOrder[right.kind]
+    || left.title.localeCompare(right.title, 'zh-Hans-CN')
+    || (left.to ?? '').localeCompare(right.to ?? '', 'zh-Hans-CN')
+    || (left.id ?? '').localeCompare(right.id ?? '');
+}
+
 export async function getContributions(): Promise<ContributionsData> {
+  const ignored = getIgnoredCommits();
+  const violations = await validateIgnoredCommits(ignored);
+  if (violations.length > 0) {
+    throw new Error(
+      `博客注册表 ${REGISTRY_FILE} 的忽略名单（ignoredCommits）校验失败：\n${violations.map((violation) => `- ${violation}`).join('\n')}`,
+    );
+  }
+
+  const registry = getRegistry();
+  const history = await getRegistryHistory(REGISTRY_FILE, ignored);
   const posts = await getPublishedPosts();
-  const deletedPosts = await getDeletedGitPosts();
+  // 已删除/已合并文章改由中央注册表提供；是否有可跳转详情页由 linkId 表达
+  const retiredPosts = (await getAllRegistryPosts()).filter((post) => post.status !== 'active');
+
   const activitiesByDay = new Map<string, PostActivity[]>();
   const addActivity = (day: string, activity: PostActivity) => {
     const existing = activitiesByDay.get(day);
@@ -133,27 +253,59 @@ export async function getContributions(): Promise<ContributionsData> {
     else activitiesByDay.set(day, [activity]);
   };
 
+  /** 已合并文章的标注：目标当前标题取自注册表（校验保证目标存在且为 active）。 */
+  const mergedAnnotation = (meta: RegistryPost): ActivityAnnotation | undefined => {
+    if (meta.status !== 'merged' || meta.mergedInto === undefined || meta.mergedInto === '') return undefined;
+    const target = registry.posts.get(meta.mergedInto);
+    return { type: 'merged', targetId: meta.mergedInto, targetTitle: target?.title ?? meta.mergedInto };
+  };
+
+  const contentActivity = (
+    id: string,
+    meta: RegistryPost,
+    kind: 'created' | 'updated' | 'created-updated',
+    epoch: number,
+  ): PostActivity => {
+    const currentTitle = meta.title;
+    const title = history.titleAt(id, epoch) ?? currentTitle;
+    if (meta.status === 'deleted') {
+      return { id, title, kind, deleted: true, linkId: null };
+    }
+    const merged = mergedAnnotation(meta);
+    if (merged !== undefined) {
+      return { id, title, kind, deleted: false, linkId: null, annotation: merged };
+    }
+    if (title === currentTitle) {
+      return { id, title, kind, deleted: false, linkId: id };
+    }
+    // 历史标题与当前名不同：标注“已改名至 当前名”
+    return {
+      id,
+      title,
+      kind,
+      deleted: false,
+      linkId: null,
+      annotation: { type: 'renamed', targetId: id, targetTitle: currentTitle },
+    };
+  };
+
   const addPostActivities = (
-    id: string | null,
-    title: string,
-    deleted: boolean,
+    id: string,
     createdEpoch: number | null,
     updatedEpochs: number[],
   ) => {
+    const meta = registry.posts.get(id);
+    if (meta === undefined) return;
     const createdWasUpdated = createdEpoch !== null && updatedEpochs.includes(createdEpoch);
     const createdIsOnlyUpdate = createdWasUpdated && updatedEpochs.length === 1;
 
     if (createdEpoch !== null) {
-      addActivity(dayKey(createdEpoch), {
-        id,
-        title,
-        kind: createdWasUpdated && !createdIsOnlyUpdate ? 'created-updated' : 'created',
-        deleted,
-      });
+      const kind = createdWasUpdated && !createdIsOnlyUpdate ? 'created-updated' : 'created';
+      addActivity(dayKey(createdEpoch), contentActivity(id, meta, kind, createdEpoch));
     }
     for (const updatedEpoch of updatedEpochs) {
       if (updatedEpoch !== createdEpoch) {
-        addActivity(dayKey(updatedEpoch), { id, title, kind: 'updated', deleted });
+        addActivity(dayKey(updatedEpoch), contentActivity(id, meta, 'updated', updatedEpoch));
       }
     }
   };
@@ -161,8 +313,6 @@ export async function getContributions(): Promise<ContributionsData> {
   for (const post of posts) {
     addPostActivities(
       post.id,
-      post.title,
-      false,
       post.createdAt.value?.getTime() ?? null,
       post.updatedAtHistory
         .map((updatedAt) => updatedAt.value?.getTime() ?? null)
@@ -170,9 +320,85 @@ export async function getContributions(): Promise<ContributionsData> {
     );
   }
 
-  for (const post of deletedPosts) {
-    addPostActivities(null, post.title, true, post.createdAt, post.updatedAt);
+  for (const post of retiredPosts) {
+    addPostActivities(
+      post.id,
+      post.createdAt.value?.getTime() ?? null,
+      post.updatedAtHistory
+        .map((updatedAt) => updatedAt.value?.getTime() ?? null)
+        .filter((epoch): epoch is number => epoch !== null),
+    );
   }
+
+  // 改名事件：title 为旧名，to 为新名；标注只指向最新状态
+  for (const rename of history.renames) {
+    const meta = registry.posts.get(rename.id);
+    const deleted = meta === undefined || meta.status === 'deleted';
+    const merged = meta === undefined ? undefined : mergedAnnotation(meta);
+    let linkId: string | null = null;
+    let annotation: ActivityAnnotation | undefined;
+    if (deleted) {
+      // 已删除文章整行纯文本
+    } else if (merged !== undefined) {
+      annotation = merged;
+    } else if (meta !== undefined && rename.to === meta.title) {
+      linkId = rename.id;
+    } else if (meta !== undefined) {
+      // 多次改名只标注最新：指向当前名
+      annotation = { type: 'renamed', targetId: rename.id, targetTitle: meta.title };
+    }
+    addActivity(dayKey(rename.epoch), {
+      id: rename.id,
+      title: rename.from,
+      kind: 'renamed',
+      deleted,
+      to: rename.to,
+      linkId,
+      annotation,
+    });
+  }
+
+  // 合并事件：按（目标 id，上海时区自然日）聚合为一行，来源名以“、”连接
+  const mergeGroups = new Map<string, { targetId: string; day: string; names: string[] }>();
+  for (const event of history.statusEvents) {
+    if (event.status !== 'merged' || event.targetId === undefined) continue;
+    const day = shanghaiDayKey(event.epoch);
+    const name = history.titleAt(event.id, event.epoch)
+      ?? registry.posts.get(event.id)?.title
+      ?? event.id;
+    const key = `${event.targetId}\n${day}`;
+    const group = mergeGroups.get(key);
+    if (group === undefined) mergeGroups.set(key, { targetId: event.targetId, day, names: [name] });
+    else group.names.push(name);
+  }
+  for (const group of mergeGroups.values()) {
+    const target = registry.posts.get(group.targetId);
+    addActivity(group.day, {
+      id: null,
+      title: group.names.join('、'),
+      kind: 'merged',
+      deleted: false,
+      to: target?.title ?? group.targetId,
+      linkId: target?.status === 'active' ? group.targetId : null,
+    });
+  }
+
+  // 删除事件：纯文本行
+  for (const event of history.statusEvents) {
+    if (event.status !== 'deleted') continue;
+    const title = history.titleAt(event.id, event.epoch)
+      ?? registry.posts.get(event.id)?.title
+      ?? event.id;
+    addActivity(dayKey(event.epoch), {
+      id: event.id,
+      title,
+      kind: 'deleted',
+      deleted: false,
+      linkId: null,
+    });
+  }
+
+  for (const activities of activitiesByDay.values()) activities.sort(compareActivities);
 
   const now = new Date();
   const currentYear = now.getUTCFullYear();

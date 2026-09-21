@@ -14,10 +14,22 @@ export function resolveCreatedAt(raw: Date | 'auto' | null | undefined): Resolve
   return { value: raw, source: 'explicit' };
 }
 
+/**
+ * updatedAt 四态归一：undefined（missing，未声明）与 null（forbidden，历史未知基线）
+ * 都解析为空历史，二者来源靠 declareUpdatedAt 区分；Date/数组为显式条目。
+ */
 export function resolveUpdatedAt(raw: Date | Date[] | null | undefined): ResolvedTimeHistory {
-  if (raw === undefined || raw === null) return [];
+  if (raw === undefined) return [];
+  if (raw === null) return [];
   if (Array.isArray(raw)) return raw.map((value) => ({ value, source: 'explicit' }));
   return [{ value: raw, source: 'explicit' }];
+}
+
+/** updatedAt 的声明形态，用于在空历史时区分「未知基线」（null）与「未声明」（missing）。 */
+export function declareUpdatedAt(raw: Date | Date[] | null | undefined): 'explicit' | 'null' | 'missing' {
+  if (raw === undefined) return 'missing';
+  if (raw === null) return 'null';
+  return 'explicit';
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');

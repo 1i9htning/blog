@@ -1,67 +1,55 @@
-import { existsSync, readdirSync } from 'node:fs';
-import { basename, extname, relative, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 
-const BLOG_ROOT = resolve(process.cwd(), 'src/content/blog');
+const REGISTRY_FILE = 'src/content/blog.meta.yml';
+
+let postIndexCache = null;
+
+// 自包含注册表读取：satteri 的 markdown 渲染发生在纯 Node 上下文，
+// 无法加载 ../lib/registry.ts（其经 Vite 解析的扩展名省略导入与 astro/zod 在纯 Node 下不可用），
+// 因此这里只依赖 node 内置模块与 yaml。注册表的完整校验仍由 src/lib/registry.ts 在构建数据层负责。
+function getPostIndex() {
+  if (postIndexCache !== null) return postIndexCache;
+  const source = readFileSync(resolve(process.cwd(), REGISTRY_FILE), 'utf8');
+  const raw = parseYaml(source);
+  const posts = raw && typeof raw === 'object' ? raw.posts : null;
+  postIndexCache = new Map(
+    Object.entries(posts && typeof posts === 'object' ? posts : {}).map(([id, meta]) => {
+      const record = meta && typeof meta === 'object' ? meta : {};
+      return [id, {
+        title: typeof record.title === 'string' ? record.title : id,
+        status: typeof record.status === 'string' ? record.status : 'active',
+      }];
+    }),
+  );
+  return postIndexCache;
+}
+
 const WIKI_LINK = /\[\[([^\[\]|]+?)(?:\|([^\]]+))?\]\]/g;
 
-function findMarkdownFiles(directory) {
-  if (!existsSync(directory)) return [];
-
-  return readdirSync(directory, { withFileTypes: true })
-    .sort((left, right) => left.name.localeCompare(right.name, 'en'))
-    .flatMap((entry) => {
-      const filePath = resolve(directory, entry.name);
-      if (entry.isDirectory()) return findMarkdownFiles(filePath);
-      return entry.isFile() && ['.md', '.mdx'].includes(extname(entry.name)) ? [filePath] : [];
-    });
-}
-
-function buildPostIndex() {
-  const postsByName = new Map();
-  const duplicates = new Map();
-
-  for (const filePath of findMarkdownFiles(BLOG_ROOT)) {
-    const name = basename(filePath, extname(filePath));
-    const id = relative(BLOG_ROOT, filePath).replaceAll('\\', '/').replace(/\.(?:md|mdx)$/, '');
-    const previous = postsByName.get(name);
-    if (previous) {
-      duplicates.set(name, [...(duplicates.get(name) ?? [previous.filePath]), filePath]);
-      continue;
-    }
-
-    const encodedId = id.split('/').map(encodeURIComponent).join('/');
-    postsByName.set(name, { filePath, url: `/blog/${encodedId}/` });
-  }
-
-  if (duplicates.size > 0) {
-    const details = [...duplicates.entries()]
-      .map(([name, files]) => `  - ${name}: ${files.join(', ')}`)
-      .join('\n');
-    throw new Error(`Wiki 链接要求博客 Markdown 文件名全局唯一：\n${details}`);
-  }
-
-  return postsByName;
-}
-
-function replaceLinks(value, postsByName, sourcePath) {
+function replaceLinks(value, posts, sourcePath) {
   const nodes = [];
   let previousIndex = 0;
 
   for (const match of value.matchAll(WIKI_LINK)) {
-    const [matched, rawName, rawLabel] = match;
+    const [matched, rawId, rawLabel] = match;
     const startIndex = match.index ?? 0;
     if (startIndex > previousIndex) nodes.push({ type: 'text', value: value.slice(previousIndex, startIndex) });
 
-    const name = rawName.trim().replace(/\.md$/i, '');
-    const post = postsByName.get(name);
+    const id = rawId.trim();
+    const post = posts.get(id);
     if (!post) {
-      throw new Error(`无法解析 Wiki 链接 "${matched}"（文件：${sourcePath ?? '未知'}）。请使用 src/content/blog 中某篇文章的唯一文件名。`);
+      throw new Error(`无法解析 Wiki 链接 "${matched}"（文件：${sourcePath ?? '未知'}）：文章 ${id} 未登记在博客注册表中。`);
+    }
+    if (post.status !== 'active') {
+      throw new Error(`Wiki 链接 "${matched}"（文件：${sourcePath ?? '未知'}）指向的文章 ${id} 状态为 ${post.status}，对应页面不存在。`);
     }
 
     nodes.push({
       type: 'link',
-      url: post.url,
-      children: [{ type: 'text', value: (rawLabel ?? name).trim() }],
+      url: `/blog/${id}/`,
+      children: [{ type: 'text', value: (rawLabel ?? post.title).trim() }],
     });
     previousIndex = startIndex + matched.length;
   }
@@ -81,18 +69,19 @@ function isInsideLink(node, context) {
 }
 
 /**
- * Converts [[file-name]] and [[file-name|label]] into links to blog posts.
- * Blog post filenames are deliberately treated as globally unique identifiers.
+ * Converts [[id]] and [[id|label]] into links to blog posts.
+ * Targets are post ids registered in src/content/blog.meta.yml; the display
+ * text defaults to the post's current registry title.
  */
 export default function wikiLinksPlugin({ fileURL } = {}) {
-  const postsByName = buildPostIndex();
+  const posts = getPostIndex();
   const sourcePath = fileURL?.pathname;
 
   return {
     name: 'wiki-links',
     text(node, context) {
       if (!node.value.includes('[[') || isInsideLink(node, context)) return;
-      const replacement = replaceLinks(node.value, postsByName, sourcePath);
+      const replacement = replaceLinks(node.value, posts, sourcePath);
       if (replacement) context.replaceNode(node, replacement);
     },
   };

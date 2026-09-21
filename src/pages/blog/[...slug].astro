@@ -2,10 +2,15 @@
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { toPostView } from '../../lib/posts';
+import { getRegistry } from '../../lib/registry';
 import { formatEpochDateTime } from '../../lib/time';
 
 export async function getStaticPaths() {
-  const entries = await getCollection('blog', (entry) => !entry.data.draft);
+  const registry = getRegistry();
+  const entries = await getCollection('blog', (entry) => {
+    const meta = registry.posts.get(entry.id);
+    return meta !== undefined && meta.status === 'active' && !meta.draft;
+  });
   return entries.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
 }
 

@@ -315,6 +315,7 @@ button { color: inherit; }
 .contrib-activity a { min-width: 0; color: var(--accent); font-size: .98rem; line-height: 1.6; overflow-wrap: anywhere; }
 .contrib-activity a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .contrib-deleted-title { min-width: 0; color: var(--ink-secondary); font-size: .98rem; line-height: 1.6; overflow-wrap: anywhere; }
+.contrib-activity-text { min-width: 0; font-size: .98rem; line-height: 1.6; overflow-wrap: anywhere; }
 .contrib-details-kind { flex: none; padding: .15rem .6rem; border-radius: var(--radius-chip); background: var(--fill); color: var(--ink-secondary); font: .75rem/1.5 var(--font-mono); }
 .contrib-details-empty { margin: .35rem 0 0; color: var(--ink-secondary); font-size: .95rem; }
 

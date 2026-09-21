@@ -1,10 +1,13 @@
 import { getRegistryHistory } from './git-time';
 import { getAllRegistryPosts, getPublishedPosts } from './posts';
 import { REGISTRY_FILE, getIgnoredCommits, getRegistry, type RegistryPost } from './registry';
-import { shanghaiDayKey } from './time';
+import { formatActivityTime, shanghaiDayKey } from './time';
 import { validateIgnoredCommits } from './validate';
 
 export type ActivityKind = 'created' | 'updated' | 'created-updated' | 'renamed' | 'merged' | 'deleted';
+
+/** 历史名称的装饰线：已删除用删除线、改名前的旧名用下划线、已合并的来源名用波浪线。 */
+export type ActivityDecoration = 'strikethrough' | 'underline' | 'wavy';
 
 export interface ActivityAnnotation {
   type: 'renamed' | 'merged';
@@ -17,13 +20,19 @@ export interface PostActivity {
   id: string | null;
   title: string;
   kind: ActivityKind;
-  /** 文章已删除：标题渲染为纯文本并带“（已删除）”后缀。 */
+  /** 活动时间（epoch 毫秒）；同日排序与时间标签的唯一来源。 */
+  epoch: number;
+  /** 上海墙钟十二小时制时间标签，形如 3.15 pm。 */
+  time: string;
+  /** 文章已删除：名称渲染为《名称》并带删除线，不再有“（已删除）”后缀。 */
   deleted: boolean;
   /** renamed 事件的新名字 / merged 事件的目标名。 */
   to?: string;
+  /** merged 事件行的来源名顺序；缺省时渲染层回退按“、”切分 title。 */
+  sources?: string[];
   /** 标题（或 to）链接到 /blog/<linkId>/；null 或缺省表示纯文本。 */
   linkId?: string | null;
-  /** 后缀标注：“（已改名至 X）”或“（已合并至 X）”，X 为链接。 */
+  /** 后缀标注：“（已改名至《X》）”或“（已合并至《X》）”，X 为链接。 */
   annotation?: ActivityAnnotation;
 }
 
@@ -34,6 +43,8 @@ export interface ActivityPart {
   href?: string;
   /** 灰字片段（历史名称、连接词、括号标注等不可点文本）。 */
   gray?: boolean;
+  /** 名称装饰线；由 CSS 类 contrib-decoration-* 表达。 */
+  decoration?: ActivityDecoration;
 }
 
 export interface ContributionCell {
@@ -87,21 +98,36 @@ export function formatFullDate(date: string): string {
 }
 
 export function activityLabel(kind: ActivityKind): string {
-  if (kind === 'created') return '创建内容';
-  if (kind === 'updated') return '更新内容';
+  if (kind === 'created') return '创建';
+  if (kind === 'updated') return '更新';
+  // 组合 kind 保留原有文案，配色上归入“创建”色系（见 global.css 的 data-kind 规则）。
   if (kind === 'created-updated') return '创建并更新内容';
-  if (kind === 'renamed') return '改名';
+  if (kind === 'renamed') return '重命名';
   if (kind === 'merged') return '合并';
   return '删除';
 }
 
-/** 行内标注后缀：“（已改名至 X）”或“（已合并至 X）”，X 为链接。 */
+/** 行内标注后缀：“（已改名至《X》）”或“（已合并至《X》）”，X 为链接。 */
 function annotationParts(annotation: ActivityAnnotation): ActivityPart[] {
   return [
-    { text: `（已${annotation.type === 'renamed' ? '改名' : '合并'}至 `, gray: true },
-    { text: annotation.targetTitle, href: `/blog/${annotation.targetId}/` },
+    { text: `（已${annotation.type === 'renamed' ? '改名' : '合并'}至`, gray: true },
+    { text: `《${annotation.targetTitle}》`, href: `/blog/${annotation.targetId}/` },
     { text: '）', gray: true },
   ];
+}
+
+/** 名称一律用中文书名号包裹；decoration 表达历史名称的装饰线。 */
+function namePart(text: string, decoration?: ActivityDecoration): ActivityPart {
+  return { text: `《${text}》`, gray: true, decoration };
+}
+
+/** 装饰线按最新状态择一：可跳转的新名不加线；已合并波浪线、改名历史下划线、已删除删除线。 */
+function targetNamePart(text: string, activity: PostActivity): ActivityPart {
+  if (activity.linkId) return { text: `《${text}》`, href: `/blog/${activity.linkId}/` };
+  if (activity.annotation?.type === 'merged') return namePart(text, 'wavy');
+  if (activity.annotation?.type === 'renamed') return namePart(text, 'underline');
+  if (activity.deleted) return namePart(text, 'strikethrough');
+  return namePart(text);
 }
 
 /** 把一行活动展开为渲染片段序列；服务端模板与客户端脚本共用同一套规则。 */
@@ -109,46 +135,37 @@ export function activityParts(activity: PostActivity): ActivityPart[] {
   const parts: ActivityPart[] = [];
 
   if (activity.kind === 'deleted') {
-    parts.push({ text: `删除 ${activity.title}`, gray: true });
+    parts.push(namePart(activity.title, 'strikethrough'));
     return parts;
   }
 
   if (activity.kind === 'renamed') {
-    if (activity.deleted) {
-      parts.push({ text: `${activity.title} 改名至 ${activity.to ?? ''}（已删除）`, gray: true });
-      return parts;
-    }
-    if (activity.linkId) {
-      parts.push(
-        { text: `${activity.title} 改名至 `, gray: true },
-        { text: activity.to ?? '', href: `/blog/${activity.linkId}/` },
-      );
-    } else {
-      parts.push({ text: `${activity.title} 改名至 ${activity.to ?? ''}`, gray: true });
-    }
+    parts.push(namePart(activity.title, 'underline'), { text: ' 重命名至 ', gray: true });
+    parts.push(targetNamePart(activity.to ?? '', activity));
     if (activity.annotation) parts.push(...annotationParts(activity.annotation));
     return parts;
   }
 
   if (activity.kind === 'merged') {
-    if (activity.linkId) {
-      parts.push(
-        { text: `${activity.title} 合并至 `, gray: true },
-        { text: activity.to ?? '', href: `/blog/${activity.linkId}/` },
-      );
-    } else {
-      parts.push({ text: `${activity.title} 合并至 ${activity.to ?? ''}`, gray: true });
+    // 来源名逐一同为波浪线：《A》《B》合并至《C》
+    for (const name of activity.sources ?? activity.title.split('、')) {
+      parts.push(namePart(name, 'wavy'));
     }
+    parts.push({ text: ' 合并至 ', gray: true });
+    if (activity.linkId) parts.push({ text: `《${activity.to ?? ''}》`, href: `/blog/${activity.linkId}/` });
+    else parts.push(namePart(activity.to ?? ''));
     return parts;
   }
 
-  // created / updated / created-updated：标题加可选标注后缀
+  // created / updated / created-updated：名称加装饰线（若有）与可选标注后缀
   if (activity.deleted) {
-    parts.push({ text: `${activity.title}（已删除）`, gray: true });
+    parts.push(namePart(activity.title, 'strikethrough'));
     return parts;
   }
-  if (activity.linkId) parts.push({ text: activity.title, href: `/blog/${activity.linkId}/` });
-  else parts.push({ text: activity.title, gray: true });
+  if (activity.linkId) parts.push({ text: `《${activity.title}》`, href: `/blog/${activity.linkId}/` });
+  else if (activity.annotation?.type === 'merged') parts.push(namePart(activity.title, 'wavy'));
+  else if (activity.annotation?.type === 'renamed') parts.push(namePart(activity.title, 'underline'));
+  else parts.push(namePart(activity.title));
   if (activity.annotation) parts.push(...annotationParts(activity.annotation));
   return parts;
 }
@@ -212,7 +229,7 @@ function buildYear(
   return { year, weeks, cells, months, total, current: year === currentYear, activityDays };
 }
 
-/** 同一天内行的确定性排序：先按事件类别，再按标题、目标名、文章 id。 */
+/** epoch 并列时的兜底排序：先按事件类别，再按标题、目标名、文章 id。 */
 const kindOrder: Record<ActivityKind, number> = {
   created: 0,
   'created-updated': 1,
@@ -227,6 +244,11 @@ function compareActivities(left: PostActivity, right: PostActivity): number {
     || left.title.localeCompare(right.title, 'zh-Hans-CN')
     || (left.to ?? '').localeCompare(right.to ?? '', 'zh-Hans-CN')
     || (left.id ?? '').localeCompare(right.id ?? '');
+}
+
+/** 同一天内行的顺序：按 epoch 从新到旧（越晚越靠上），并列时退回 compareActivities。 */
+function compareActivityOrder(left: PostActivity, right: PostActivity): number {
+  return right.epoch - left.epoch || compareActivities(left, right);
 }
 
 export async function getContributions(): Promise<ContributionsData> {
@@ -266,21 +288,20 @@ export async function getContributions(): Promise<ContributionsData> {
   ): PostActivity => {
     const currentTitle = meta.title;
     const title = history.titleAt(id, epoch) ?? currentTitle;
+    const base = { id, title, kind, epoch, time: formatActivityTime(epoch) };
     if (meta.status === 'deleted') {
-      return { id, title, kind, deleted: true, linkId: null };
+      return { ...base, deleted: true, linkId: null };
     }
     const merged = mergedAnnotation(meta);
     if (merged !== undefined) {
-      return { id, title, kind, deleted: false, linkId: null, annotation: merged };
+      return { ...base, deleted: false, linkId: null, annotation: merged };
     }
     if (title === currentTitle) {
-      return { id, title, kind, deleted: false, linkId: id };
+      return { ...base, deleted: false, linkId: id };
     }
     // 历史标题与当前名不同：标注“已改名至 当前名”
     return {
-      id,
-      title,
-      kind,
+      ...base,
       deleted: false,
       linkId: null,
       annotation: { type: 'renamed', targetId: id, targetTitle: currentTitle },
@@ -349,6 +370,8 @@ export async function getContributions(): Promise<ContributionsData> {
       id: rename.id,
       title: rename.from,
       kind: 'renamed',
+      epoch: rename.epoch,
+      time: formatActivityTime(rename.epoch),
       deleted,
       to: rename.to,
       linkId,
@@ -357,7 +380,7 @@ export async function getContributions(): Promise<ContributionsData> {
   }
 
   // 合并事件：按（目标 id，上海时区自然日）聚合为一行，来源名以“、”连接
-  const mergeGroups = new Map<string, { targetId: string; day: string; names: string[] }>();
+  const mergeGroups = new Map<string, { targetId: string; day: string; names: string[]; epoch: number }>();
   for (const event of history.statusEvents) {
     if (event.status !== 'merged' || event.targetId === undefined) continue;
     const day = dayKey(event.epoch);
@@ -366,8 +389,13 @@ export async function getContributions(): Promise<ContributionsData> {
       ?? event.id;
     const key = `${event.targetId}\n${day}`;
     const group = mergeGroups.get(key);
-    if (group === undefined) mergeGroups.set(key, { targetId: event.targetId, day, names: [name] });
-    else group.names.push(name);
+    if (group === undefined) {
+      mergeGroups.set(key, { targetId: event.targetId, day, names: [name], epoch: event.epoch });
+    } else {
+      group.names.push(name);
+      // 聚合行取组内最晚事件时间：与同日“越晚越靠上”的排序口径一致。
+      group.epoch = Math.max(group.epoch, event.epoch);
+    }
   }
   for (const group of mergeGroups.values()) {
     const target = registry.posts.get(group.targetId);
@@ -375,8 +403,11 @@ export async function getContributions(): Promise<ContributionsData> {
       id: null,
       title: group.names.join('、'),
       kind: 'merged',
+      epoch: group.epoch,
+      time: formatActivityTime(group.epoch),
       deleted: false,
       to: target?.title ?? group.targetId,
+      sources: group.names,
       linkId: target?.status === 'active' ? group.targetId : null,
     });
   }
@@ -391,12 +422,14 @@ export async function getContributions(): Promise<ContributionsData> {
       id: event.id,
       title,
       kind: 'deleted',
+      epoch: event.epoch,
+      time: formatActivityTime(event.epoch),
       deleted: false,
       linkId: null,
     });
   }
 
-  for (const activities of activitiesByDay.values()) activities.sort(compareActivities);
+  for (const activities of activitiesByDay.values()) activities.sort(compareActivityOrder);
 
   // 今天/今年同样按上海墙钟取，future 判定、年份归属与格子日键同口径；
   // Date.UTC 在这里只是历法日期容器（见 buildYear 注释）。

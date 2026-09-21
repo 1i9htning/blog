@@ -52,6 +52,26 @@ export function formatEpochDateTime(epoch: number): string {
   return `${pick('year')}-${pick('month')}-${pick('day')} ${pick('hour')}:${pick('minute')}`;
 }
 
+// 活动行的时间标签：上海墙钟十二小时制，形如 3.15 pm（小时无前导零、点号分隔、
+// 分钟两位、am/pm 小写）。沿用 en-CA + formatToParts 取数值分量，hourCycle 固定
+// h23 拿到 24 小时值后自行换算 12 小时制与 am/pm，避开 locale 的 dayPeriod 文本漂移。
+const shanghaiClockFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Shanghai',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+export function formatActivityTime(epoch: number): string {
+  const parts = shanghaiClockFormatter.formatToParts(new Date(epoch));
+  const pick = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  const hour24 = Number(pick('hour'));
+  const minute = pick('minute').padStart(2, '0');
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}.${minute} ${hour24 < 12 ? 'am' : 'pm'}`;
+}
+
 // 归日/归月只取历法日，另用一个不含时分秒的上海墙钟 formatter（同样的 en-CA parts 思路）。
 const shanghaiDayFormatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai',

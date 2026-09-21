@@ -1,11 +1,19 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { activityLabel, activityParts, formatFullDate, getContributions, type PostActivity } from '../lib/contributions';
+import { activityLabel, activityParts, formatFullDate, getContributions, type ActivityPart, type PostActivity } from '../lib/contributions';
 
 const { years } = await getContributions();
 const current = years[0];
 const weekdays = ['', '周一', '', '周三', '', '周五', ''];
 const levels = [0, 1, 2, 3, 4];
+
+// 片段类名：灰字复用 contrib-deleted-title，装饰线用 contrib-decoration-*。
+const partClass = (part: ActivityPart): string => {
+  const classes: string[] = [];
+  if (part.gray === true) classes.push('contrib-deleted-title');
+  if (part.decoration !== undefined) classes.push(`contrib-decoration-${part.decoration}`);
+  return classes.join(' ');
+};
 const activityMap: Record<string, PostActivity[]> = {};
 for (const yearData of years) {
   for (const day of yearData.activityDays) activityMap[day.date] = day.activities;
@@ -95,13 +103,16 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
                           <span class="contrib-activity-text">
                             {activityParts(activity).map((part) => part.href !== undefined ? (
                               <a href={part.href}>{part.text}</a>
-                            ) : part.gray === true ? (
-                              <span class="contrib-deleted-title">{part.text}</span>
+                            ) : part.gray === true || part.decoration !== undefined ? (
+                              <span class={partClass(part)}>{part.text}</span>
                             ) : (
                               part.text
                             ))}
                           </span>
-                          <span class="contrib-details-kind">{activityLabel(activity.kind)}</span>
+                          <span class="contrib-activity-meta">
+                            <span class="contrib-activity-time">{activity.time}</span>
+                            <span class="contrib-details-kind" data-kind={activity.kind}>{activityLabel(activity.kind)}</span>
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -126,69 +137,82 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
       id: string | null;
       title: string;
       kind: string;
+      epoch: number;
+      time: string;
       deleted: boolean;
       to?: string;
+      sources?: string[];
       linkId?: string | null;
       annotation?: ActivityAnnotationJson;
     }
-    interface ActivityPartJson { text: string; href?: string; gray?: boolean; }
+    interface ActivityPartJson { text: string; href?: string; gray?: boolean; decoration?: string; }
     const labels: Record<string, string> = {
-      created: '创建内容',
-      updated: '更新内容',
+      created: '创建',
+      updated: '更新',
       'created-updated': '创建并更新内容',
-      renamed: '改名',
+      renamed: '重命名',
       merged: '合并',
       deleted: '删除',
+    };
+    const partClass = (part: ActivityPartJson): string => {
+      const classes: string[] = [];
+      if (part.gray === true) classes.push('contrib-deleted-title');
+      if (part.decoration !== undefined) classes.push(`contrib-decoration-${part.decoration}`);
+      return classes.join(' ');
     };
 
     function annotationParts(annotation: ActivityAnnotationJson): ActivityPartJson[] {
       return [
-        { text: `（已${annotation.type === 'renamed' ? '改名' : '合并'}至 `, gray: true },
-        { text: annotation.targetTitle, href: `/blog/${annotation.targetId}/` },
+        { text: `（已${annotation.type === 'renamed' ? '改名' : '合并'}至`, gray: true },
+        { text: `《${annotation.targetTitle}》`, href: `/blog/${annotation.targetId}/` },
         { text: '）', gray: true },
       ];
+    }
+
+    // 名称一律用中文书名号包裹；decoration 表达历史名称的装饰线
+    function namePart(text: string, decoration?: string): ActivityPartJson {
+      return { text: `《${text}》`, gray: true, decoration };
+    }
+
+    // 装饰线按最新状态择一：可跳转的新名不加线；已合并波浪线、改名历史下划线、已删除删除线
+    function targetNamePart(text: string, activity: ActivityJson): ActivityPartJson {
+      if (activity.linkId) return { text: `《${text}》`, href: `/blog/${activity.linkId}/` };
+      if (activity.annotation?.type === 'merged') return namePart(text, 'wavy');
+      if (activity.annotation?.type === 'renamed') return namePart(text, 'underline');
+      if (activity.deleted) return namePart(text, 'strikethrough');
+      return namePart(text);
     }
 
     // 与服务端 activityParts 同一套规则：把一行活动展开为文本/链接片段
     function activityParts(activity: ActivityJson): ActivityPartJson[] {
       const parts: ActivityPartJson[] = [];
       if (activity.kind === 'deleted') {
-        parts.push({ text: `删除 ${activity.title}`, gray: true });
+        parts.push(namePart(activity.title, 'strikethrough'));
         return parts;
       }
       if (activity.kind === 'renamed') {
-        if (activity.deleted) {
-          parts.push({ text: `${activity.title} 改名至 ${activity.to ?? ''}（已删除）`, gray: true });
-          return parts;
-        }
-        if (activity.linkId) {
-          parts.push(
-            { text: `${activity.title} 改名至 `, gray: true },
-            { text: activity.to ?? '', href: `/blog/${activity.linkId}/` },
-          );
-        } else {
-          parts.push({ text: `${activity.title} 改名至 ${activity.to ?? ''}`, gray: true });
-        }
+        parts.push(namePart(activity.title, 'underline'), { text: ' 重命名至 ', gray: true });
+        parts.push(targetNamePart(activity.to ?? '', activity));
         if (activity.annotation) parts.push(...annotationParts(activity.annotation));
         return parts;
       }
       if (activity.kind === 'merged') {
-        if (activity.linkId) {
-          parts.push(
-            { text: `${activity.title} 合并至 `, gray: true },
-            { text: activity.to ?? '', href: `/blog/${activity.linkId}/` },
-          );
-        } else {
-          parts.push({ text: `${activity.title} 合并至 ${activity.to ?? ''}`, gray: true });
+        for (const name of activity.sources ?? activity.title.split('、')) {
+          parts.push(namePart(name, 'wavy'));
         }
+        parts.push({ text: ' 合并至 ', gray: true });
+        if (activity.linkId) parts.push({ text: `《${activity.to ?? ''}》`, href: `/blog/${activity.linkId}/` });
+        else parts.push(namePart(activity.to ?? ''));
         return parts;
       }
       if (activity.deleted) {
-        parts.push({ text: `${activity.title}（已删除）`, gray: true });
+        parts.push(namePart(activity.title, 'strikethrough'));
         return parts;
       }
-      if (activity.linkId) parts.push({ text: activity.title, href: `/blog/${activity.linkId}/` });
-      else parts.push({ text: activity.title, gray: true });
+      if (activity.linkId) parts.push({ text: `《${activity.title}》`, href: `/blog/${activity.linkId}/` });
+      else if (activity.annotation?.type === 'merged') parts.push(namePart(activity.title, 'wavy'));
+      else if (activity.annotation?.type === 'renamed') parts.push(namePart(activity.title, 'underline'));
+      else parts.push(namePart(activity.title));
       if (activity.annotation) parts.push(...annotationParts(activity.annotation));
       return parts;
     }
@@ -226,19 +250,26 @@ const serializedActivities = JSON.stringify(activityMap).replace(/</g, '\\u003c'
           link.href = part.href;
           link.textContent = part.text;
           text.append(link);
-        } else if (part.gray === true) {
+        } else if (part.gray === true || part.decoration !== undefined) {
           const span = document.createElement('span');
-          span.className = 'contrib-deleted-title';
+          span.className = partClass(part);
           span.textContent = part.text;
           text.append(span);
         } else {
           text.append(document.createTextNode(part.text));
         }
       }
+      const meta = document.createElement('span');
+      meta.className = 'contrib-activity-meta';
+      const time = document.createElement('span');
+      time.className = 'contrib-activity-time';
+      time.textContent = activity.time;
       const kind = document.createElement('span');
       kind.className = 'contrib-details-kind';
+      kind.dataset.kind = activity.kind;
       kind.textContent = labels[activity.kind] ?? '内容活动';
-      row.append(text, kind);
+      meta.append(time, kind);
+      row.append(text, meta);
       return row;
     }
 

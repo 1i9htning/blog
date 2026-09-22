@@ -39,7 +39,10 @@ const serializedPosts = JSON.stringify(clientPosts).replace(/</g, '\\u003c');
           </div>
           <div class="tag-filters" aria-label="按标签筛选">
             {tags.map(([tag]) => <button type="button" data-tag={tag} aria-pressed="false">{tag}</button>)}
-            <span id="filter-logic" class="filter-note" hidden>任一匹配</span>
+            <div id="filter-logic" class="match-control" role="group" aria-label="标签匹配方式" hidden>
+              <button type="button" data-match="any" aria-pressed="true">任一</button>
+              <button type="button" data-match="all" aria-pressed="false">交集</button>
+            </div>
             <button id="clear-filters" class="clear-button" type="button" hidden>清除筛选</button>
           </div>
         </div>
@@ -105,6 +108,7 @@ const serializedPosts = JSON.stringify(clientPosts).replace(/</g, '\\u003c');
     const count = document.querySelector<HTMLElement>('#post-count');
     const empty = document.querySelector<HTMLElement>('#empty-state');
     const filterLogic = document.querySelector<HTMLElement>('#filter-logic');
+    const matchButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-match]')];
     const timelineField = document.querySelector<HTMLElement>('#timeline-field');
     const search = document.querySelector<HTMLInputElement>('#nav-search-input');
     const searchForm = document.querySelector<HTMLFormElement>('#nav-search-form');
@@ -123,6 +127,8 @@ const serializedPosts = JSON.stringify(clientPosts).replace(/</g, '\\u003c');
     const availableTags = new Set(posts.flatMap((post) => post.tags));
     const params = new URLSearchParams(location.search);
     const selectedTags = new Set(params.getAll('tag').filter((tag) => availableTags.has(tag)));
+    type MatchMode = 'any' | 'all';
+    let matchMode: MatchMode = params.get('match') === 'all' ? 'all' : 'any';
     let sort: SortKey = params.get('sort') === 'created' ? 'created' : 'updated';
     let query = params.get('search') ?? '';
     if (search) search.value = query;
@@ -209,6 +215,7 @@ const serializedPosts = JSON.stringify(clientPosts).replace(/</g, '\\u003c');
     function syncUrl() {
       const next = new URLSearchParams();
       for (const tag of selectedTags) next.append('tag', tag);
+      if (matchMode === 'all' && selectedTags.size > 0) next.set('match', 'all');
       if (sort !== 'updated') next.set('sort', sort);
       if (query.trim()) next.set('search', query.trim());
       history.replaceState(null, '', next.size > 0 ? `?${next}` : location.pathname);
@@ -217,7 +224,9 @@ const serializedPosts = JSON.stringify(clientPosts).replace(/</g, '\\u003c');
     function applyFilters() {
       const normalized = query.trim().toLocaleLowerCase();
       const visible = posts.filter((post) => {
-        const tagMatch = selectedTags.size === 0 || post.tags.some((tag) => selectedTags.has(tag));
+        const tagMatch = selectedTags.size === 0 || (matchMode === 'all'
+          ? [...selectedTags].every((tag) => post.tags.includes(tag))
+          : post.tags.some((tag) => selectedTags.has(tag)));
         // Search is intentionally isolated so description and tags can be added later.
         const searchMatch = normalized === '' || post.title.toLocaleLowerCase().includes(normalized);
         return tagMatch && searchMatch;
@@ -239,6 +248,11 @@ const serializedPosts = JSON.stringify(clientPosts).replace(/</g, '\\u003c');
       if (empty) empty.hidden = visible.length !== 0;
       if (list) list.hidden = visible.length === 0;
       if (filterLogic) filterLogic.hidden = selectedTags.size < 2;
+      matchButtons.forEach((button) => {
+        const active = button.dataset.match === matchMode;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
       if (timelineField) timelineField.textContent = sort === 'created' ? '按创建时间' : '按更新时间';
       clearButtons.forEach((button) => button.hidden = !filtered);
       tagButtons.forEach((button) => {
@@ -261,6 +275,13 @@ const serializedPosts = JSON.stringify(clientPosts).replace(/</g, '\\u003c');
       selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
       applyFilters();
     }));
+    matchButtons.forEach((button) => button.addEventListener('click', () => {
+      const next = button.dataset.match;
+      if (next === 'any' || next === 'all') {
+        matchMode = next;
+        applyFilters();
+      }
+    }));
     sortButtons.forEach((button) => button.addEventListener('click', () => {
       const next = button.dataset.sort;
       if (next === 'created' || next === 'updated') {
@@ -270,6 +291,7 @@ const serializedPosts = JSON.stringify(clientPosts).replace(/</g, '\\u003c');
     }));
     clearButtons.forEach((button) => button.addEventListener('click', () => {
       selectedTags.clear();
+      matchMode = 'any';
       query = '';
       if (search) search.value = '';
       applyFilters();

@@ -152,7 +152,10 @@ button { color: inherit; }
 .tag-filters [data-tag]:hover, .tag-filters [data-tag].active { color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-ring); transform: translateY(-1px); }
 .tag-link { min-height: 1.8rem; padding: .14rem .65rem; font-size: .74rem; }
 .tag-link:hover { color: var(--accent); background: var(--accent-soft); transform: translateY(-1px); }
-.filter-note { color: var(--ink-tertiary); font-size: .85rem; }
+.match-control { display: inline-flex; min-height: 2.1rem; padding: 3px; gap: 2px; border: 1px solid var(--hairline); border-radius: var(--radius-control); background: var(--surface-secondary); box-shadow: var(--card-highlight); }
+.match-control button { min-width: 3.2rem; padding: .15rem .55rem; border: 0; border-radius: 7px; background: transparent; color: var(--ink-tertiary); font: .78rem/1.2 var(--font-mono); cursor: pointer; transition: transform var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease); }
+.match-control button:hover { color: var(--ink); }
+.match-control button.active { background: var(--segment-thumb); color: var(--ink); box-shadow: var(--segment-shadow); }
 .clear-button { min-height: 2.1rem; padding: .2rem .7rem; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--accent); font-size: .86rem; cursor: pointer; transition: transform var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease); }
 .clear-button:hover { background: var(--accent-soft); transform: translateY(-1px); }
 

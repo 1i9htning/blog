@@ -1,85 +1,90 @@
-# Astro Starter Kit: Minimal
+# Li9htning's Blog
+
+基于 Astro 的静态博客。文章正文与运行时元数据分离，文章地址稳定地使用短 ID，而不是标题或文件名。
+
+## 开发
+
+需要 Node.js 22.12 或更高版本，以及 pnpm 11。
+
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm install` | 安装依赖 |
+| `pnpm dev` | 启动本地开发服务器 |
+| `pnpm build` | 构建静态站点到 `dist/` |
+| `pnpm preview` | 预览已构建站点 |
+| `pnpm new "文章标题"` | 创建一篇新文章及注册表条目 |
+
+## 内容架构
+
+```text
+src/content/
+├── blog.meta.yml          # 中央文章注册表
+└── blog/
+    └── <id>/
+        ├── index.md       # 纯 Markdown 正文，无 frontmatter
+        └── images/        # 文章配图（可选）
+```
+
+`<id>` 是唯一的六位小写字母数字串，也是文章 URL：`/blog/<id>/`。标题改动不会改变目录名或 URL。
+
+所有文章元数据都位于 `src/content/blog.meta.yml` 的 `posts.<id>` 中。例如：
+
+```yaml
+posts:
+  abc123:
+    title: 示例文章
+    tags: [C++, 示例]
+    draft: false
+    migrated: false
+    createdAt: auto
+    status: active
+```
+
+常用字段：
+
+- `title`：文章当前标题；
+- `tags`：平铺标签列表；多标签筛选可使用任一或交集匹配；
+- `draft`：草稿不生成公开页面；
+- `migrated`：站外迁移文章设为 `true`；
+- `createdAt`：`auto`、上海墙钟时间，或 `null`；迁移文章不能使用 `auto`；
+- `updatedAt`：可省略、为单个上海墙钟时间、时间列表，或 `null`；
+- `status`：`active`、`merged` 或 `deleted`。
+
+时间格式为 `YYYY-MM-DD HH:mm`，按 Asia/Shanghai 解释。手动时间与正文的 Git 修改历史共同构成文章时间线。
+
+## 新建与编辑文章
+
+使用下面的命令创建文章：
 
 ```sh
-pnpm create astro@latest -- --template minimal
+pnpm new "文章标题"
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
-
-## ✍️ 博客内容
-
-文章放在 `src/content/blog/` 中，支持任意层级的目录。例如，一篇文章及其图片可以放在同一个文件夹：
-
-```text
-src/content/blog/2026/my-post/
-├── my-post.md
-├── cover.png
-└── images/
-    └── diagram.png
-```
-
-在 Markdown 中可用相对路径引用同级图片：`![封面](./cover.png)`。
-
-文章之间可用 Wiki 链接直接按**文件名**跳转，无需写目录或扩展名：
+命令会生成 ID 目录、空的 `index.md`，并追加一条 `createdAt: auto` 的注册表记录。随后在 `index.md` 写入 Markdown，并按需在同目录放置图片：
 
 ```md
-参见 [[another-post]]。
-也可使用 [[another-post|另一篇文章]] 自定义链接文字。
+![示意图](./images/diagram.png)
 ```
 
-`src/content/blog/` 中的 `.md` 文件名必须全局唯一；构建时会报出重名或找不到目标的 Wiki 链接。因此，不应在多个文章文件夹中重复使用 `index.md`。实际文章 URL 仍保留完整目录层级，例如 `2026/my-post/my-post.md` 对应 `/blog/2026/my-post/my-post/`。
+迁移文章应保留原始标题、标签和时间，并显式设置 `migrated: true` 与 `createdAt`。迁移提交本身不会被视为正文更新；之后修改 `index.md` 会正常进入更新时间和活动记录。
 
-`updatedAt` 可以是单个时间（兼容已有文章），也可以是从早到晚排列的更新时间列表：
+## Wiki 链接
 
-```yaml
-updatedAt:
-  - 2022-10-09 17:31
-  - 2022-10-29 01:31
+文章之间使用文章 ID 互链，而不是标题或文件名：
+
+```md
+参见 [[abc123]]。
+也可使用 [[abc123|显示文字]] 指定链接文字。
 ```
 
-也可写成一行：`updatedAt: [2022-10-09 17:31, 2022-10-29 01:31]`。手动时间必须严格升序且不能重复。无论是否填写 `updatedAt`，系统都会读取该文件的 Git 内容更新历史，与手动时间合并、去重并按时间升序排列；纯移动或重命名不会记作更新。`updatedAt:` 为空且 Git 中也没有该文件记录时，更新时间显示为“未知”。文章详情只显示最终最后一个时间，活动图会记录每一次更新。
+目标必须是注册表中 `status: active` 的文章；无效链接会使构建失败。
 
-对于从其他平台迁移的文章，添加 `migrated: true`。它不会从 Git 推断创建时间：请填写原始 `createdAt`，或使用 `createdAt: null`（也可省略）表示未知：
+## 校验
 
-```yaml
-migrated: true
-createdAt: null # 无法确定原始创建时间
+提交前至少运行：
+
+```sh
+pnpm build
 ```
 
-该文章最早的一次 Git 内容提交只代表导入，会从更新时间和活动图中排除；之后的内容修改仍会记录。
-
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
-
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
-| `pnpm build`           | Build your production site to `./dist/`          |
-| `pnpm preview`         | Preview your build locally, before deploying     |
-| `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `pnpm astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+构建会校验注册表、文章目录、文章状态和 Wiki 链接，并生成全部静态页面。

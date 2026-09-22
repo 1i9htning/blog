@@ -87,7 +87,7 @@ export function getRegistry(): Registry {
   try {
     source = readFileSync(resolve(process.cwd(), REGISTRY_FILE), 'utf8');
   } catch {
-    throw new Error(`博客注册表 ${REGISTRY_FILE} 不存在或无法读取；请先创建注册表（可用 pnpm migrate 生成）`);
+    throw new Error(`博客注册表 ${REGISTRY_FILE} 不存在或无法读取；请人工检查并恢复注册表。`);
   }
 
   let raw: unknown;

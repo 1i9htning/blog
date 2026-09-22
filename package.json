@@ -11,9 +11,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "new": "node scripts/new-post.mjs",
-    "migrate": "node scripts/migrate-to-registry.mjs",
-    "verify:migration": "node scripts/verify-migration.mjs"
+    "new": "node scripts/new-post.mjs"
   },
   "dependencies": {
     "@astrojs/markdown-satteri": "^0.4.0",

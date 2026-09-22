@@ -26,7 +26,7 @@ function fail(message) {
 
 const title = process.argv[2]?.trim();
 if (!title) fail('用法：node scripts/new-post.mjs "文章标题"');
-if (!existsSync(REGISTRY_PATH)) fail('注册表 src/content/blog.meta.yml 不存在，请先运行 scripts/migrate-to-registry.mjs 完成迁移。');
+if (!existsSync(REGISTRY_PATH)) fail('注册表 src/content/blog.meta.yml 不存在，请人工检查并恢复注册表后再创建文章。');
 
 function generateId(taken) {
   for (;;) {

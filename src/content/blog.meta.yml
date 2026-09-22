@@ -1,9 +1,9 @@
 ignoredCommits:
-  - f9139e81a680f498c154c827277f7c4d74d8431b  # 迁移提交：元数据分离与文件夹搬迁，不计入更新时间
+  - f9139e81a680f498c154c827277f7c4d74d8431b # 迁移提交：元数据分离与文件夹搬迁，不计入更新时间
 posts:
   cnusx5:
     title: bind函数
-    tags: [ C++, std ]
+    tags: [C++, std]
     draft: false
     migrated: true
     createdAt: 2022-10-08 18:50
@@ -12,7 +12,7 @@ posts:
     status: active
   bobkb4:
     title: C++ ODR：从 TU、linkage 到 inline
-    tags: [ C++, ODR, Translation Unit, linkage, inline, static ]
+    tags: [C++, ODR, Translation Unit, linkage, inline, static]
     draft: false
     migrated: false
     createdAt: 2026-09-03 19:47:50
@@ -21,7 +21,7 @@ posts:
     status: active
   3guabc:
     title: IO类
-    tags: [ C++, std, stream ]
+    tags: [C++, std, stream]
     draft: false
     migrated: true
     createdAt: 2022-09-09 19:31
@@ -30,7 +30,7 @@ posts:
     status: active
   bkq0uw:
     title: Rust 基础环境部署
-    tags: [ C++, cargo, rustup ]
+    tags: [C++, cargo, rustup]
     draft: false
     migrated: true
     createdAt: 2026-05-12 09:40
@@ -39,7 +39,7 @@ posts:
     status: active
   v1v2e9:
     title: 关联容器
-    tags: [ C++, std, 关联容器 ]
+    tags: [C++, std, 关联容器]
     draft: false
     migrated: true
     createdAt: 2022-08-19 01:47
@@ -48,7 +48,7 @@ posts:
     status: active
   k7iyoj:
     title: 初始值列表initializer_list（标准库类型）
-    tags: [ C++, std ]
+    tags: [C++, std]
     draft: false
     migrated: true
     createdAt: 2022-09-02 14:54
@@ -57,7 +57,7 @@ posts:
     status: active
   n278nb:
     title: 动态内存
-    tags: [ C++, 动态内存 ]
+    tags: [C++, 动态内存]
     draft: false
     migrated: true
     createdAt: 2022-09-26 21:45
@@ -66,7 +66,7 @@ posts:
     status: active
   gxsghx:
     title: 单项链表forward_list（标准库类型）
-    tags: [ C++, std, 链表 ]
+    tags: [C++, std, 链表]
     draft: false
     migrated: true
     createdAt: 2022-09-13 01:42
@@ -75,7 +75,7 @@ posts:
     status: active
   l78jx7:
     title: 向量vector（标准库类型）
-    tags: [ C++, std, std::vector ]
+    tags: [C++, std, std::vector]
     draft: false
     migrated: true
     createdAt: 2022-08-28 16:21
@@ -84,7 +84,7 @@ posts:
     status: active
   4r9n3d:
     title: 字符串string（标准库类型）
-    tags: [ C++, std, std::string ]
+    tags: [C++, std, std::string]
     draft: false
     migrated: true
     createdAt: 2022-08-28 11:34
@@ -93,7 +93,7 @@ posts:
     status: active
   k6n7s1:
     title: 容器适配器
-    tags: [ C++, std ]
+    tags: [C++, std]
     draft: false
     migrated: true
     createdAt: 2022-09-18 18:35
@@ -102,7 +102,7 @@ posts:
     status: active
   sx64tv:
     title: 泛型算法
-    tags: [ C++, std, 泛型 ]
+    tags: [C++, std, 泛型]
     draft: false
     migrated: true
     createdAt: 2022-09-29 18:58
@@ -111,7 +111,7 @@ posts:
     status: active
   gufg4l:
     title: 特殊迭代器
-    tags: [ C++, std, 迭代器 ]
+    tags: [C++, std, 迭代器]
     draft: false
     migrated: true
     createdAt: 2022-08-18 04:55
@@ -120,7 +120,7 @@ posts:
     status: active
   p9tq2f:
     title: 迭代器
-    tags: [ C++, std, 迭代器 ]
+    tags: [C++, std, 迭代器]
     draft: false
     migrated: true
     createdAt: 2022-08-28 18:49
@@ -129,10 +129,135 @@ posts:
     status: active
   8fytoq:
     title: 顺序容器概览
-    tags: [ C++, std ]
+    tags: [C++, std]
     draft: false
     migrated: true
     createdAt: 2022-09-11 15:37
     updatedAt:
       - 2022-10-13 17:18
+    status: active
+  2svvcp:
+    title: "C风格字符串"
+    tags: ["C++", "字符串"]
+    draft: false
+    migrated: true
+    createdAt: 2022-08-29 13:52
+    updatedAt:
+      - 2022-10-10 09:46
+    status: active
+  jp46sw:
+    title: "lambda表达式（匿名函数）"
+    tags: ["C++", "lambda", "可调用对象"]
+    draft: false
+    migrated: true
+    createdAt: 2022-09-30 01:15
+    updatedAt:
+      - 2022-09-30 01:15
+    status: active
+  3u4iv0:
+    title: "函数"
+    tags: ["C++", "函数"]
+    draft: false
+    migrated: true
+    createdAt: 2022-09-01 16:31
+    updatedAt:
+      - 2022-10-13 16:23
+    status: active
+  rler5q:
+    title: "函数匹配"
+    tags: ["C++", "函数"]
+    draft: false
+    migrated: true
+    createdAt: 2022-09-03 21:20
+    updatedAt:
+      - 2022-10-13 16:30
+    status: active
+  0oaxz4:
+    title: "函数重载"
+    tags: ["C++", "函数", "重载"]
+    draft: false
+    migrated: true
+    createdAt: 2022-09-02 18:21
+    updatedAt:
+      - 2022-09-03 23:23
+    status: active
+  lkcvh2:
+    title: "多维数组"
+    tags: ["C++", "数组"]
+    draft: false
+    migrated: true
+    createdAt: 2022-08-29 14:34
+    updatedAt:
+      - 2022-10-13 01:46
+    status: active
+  wk0y2c:
+    title: "字符处理函数"
+    tags: ["C++"]
+    draft: false
+    migrated: true
+    createdAt: 2022-08-28 16:21
+    updatedAt:
+      - 2022-08-28 16:21
+    status: active
+  iin4fa:
+    title: "数组"
+    tags: ["C++", "数组"]
+    draft: false
+    migrated: true
+    createdAt: 2022-08-28 20:16
+    updatedAt:
+      - 2022-10-13 01:34
+    status: active
+  dnvlil:
+    title: "标准异常"
+    tags: ["C++", "异常"]
+    draft: false
+    migrated: true
+    createdAt: 2022-09-01 14:54
+    updatedAt:
+      - 2022-09-01 14:54
+    status: active
+  eehcnn:
+    title: "类"
+    tags: ["C++", "类"]
+    draft: false
+    migrated: true
+    createdAt: 2022-08-28 10:49
+    updatedAt:
+      - 2022-10-13 01:29
+    status: active
+  xwduo8:
+    title: "语句"
+    tags: ["C++", "语句"]
+    draft: false
+    migrated: true
+    createdAt: 2022-08-31 17:52
+    updatedAt:
+      - 2022-09-02 15:41
+    status: active
+  izk5gi:
+    title: "运算符"
+    tags: ["C++", "运算符"]
+    draft: false
+    migrated: true
+    createdAt: 2022-08-29 15:32
+    updatedAt: 2022-09-25 20:40
+    status: active
+  vr5a7d:
+    title: "运算符优先级"
+    tags: ["C++", "运算符"]
+    draft: false
+    migrated: true
+    createdAt: 2022-08-29 15:42
+    updatedAt:
+      - 2022-10-13 02:15
+    status: active
+  xvhki7:
+    title: "预处理器"
+    tags: ["C++", "预处理器"]
+    draft: false
+    migrated: true
+    createdAt: 2022-08-28 11:30
+    updatedAt:
+      - 2022-09-03 20:52
     status: active

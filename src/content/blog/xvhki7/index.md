@@ -33,5 +33,5 @@ assert的行为依赖于这个变量。如果定义了NDEBUG，assert什么也�
 
 **因此，assert应该仅用于验证那些确实不可能发生的事情。比如assert(!cin)**
 
-![无名 #1](./images/无名 #1.png)
-![无名 #2](./images/无名 #2.png)
+![无名 #1](./images/无名%20#1.png)
+![无名 #2](./images/无名%20#2.png)

@@ -56,11 +56,11 @@ auto *pi = new auto(9);//pi指向int类型的值为9的对象 auto *pv = new aut
 
 **分为shared_ptr、unique_ptr、weak_ptr三种类型**
 
-![shared_ptr 和 unique_ptr 都支持的操作](./images/shared_ptr 和 unique_ptr 都支持的操作.png)
+![shared_ptr 和 unique_ptr 都支持的操作](./images/shared_ptr%20和%20unique_ptr%20都支持的操作.png)
 
 ## shared_ptr类：
 
-![shared_ptr 独有的操作](./images/shared_ptr 独有的操作.png)
+![shared_ptr 独有的操作](./images/shared_ptr%20独有的操作.png)
 
 ### make_shared函数：
 

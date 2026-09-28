@@ -34,7 +34,7 @@ pair<string,int> function(vector<sting>& v)
 }
 ~~~
 
-![pair 上的操作](./images/pair 上的操作.png)
+![pair 上的操作](./images/pair%20上的操作.png)
 
 ![关联容器类型](./images/关联容器类型.png)
 
@@ -42,13 +42,13 @@ pair<string,int> function(vector<sting>& v)
 
 ![关联容器额外的类型别名](./images/关联容器额外的类型别名.png)
 
-![关联容器 insert 操作](./images/关联容器 insert 操作.png)
+![关联容器 insert 操作](./images/关联容器%20insert%20操作.png)
 
 ![从关联容器中删除元素](./images/从关联容器中删除元素.png)
 
-![map 和 unordered_map 的下标操作](./images/map 和 unordered_map 的下标操作.png)
+![map 和 unordered_map 的下标操作](./images/map%20和%20unordered_map%20的下表操作.png)
 
-![在一个关联容器中查找元素的操作 #1](./images/在一个关联容器中查找元素的操作 #1.png)
+![在一个关联容器中查找元素的操作 #1](./images/在一个关联容器中查找元素的操作%20#1.png)
 
-![在一个关联容器中查找元素的操作 #2](./images/在一个关联容器中查找元素的操作 #2.png)
+![在一个关联容器中查找元素的操作 #2](./images/在一个关联容器中查找元素的操作%20#2.png)
 

@@ -8,9 +8,9 @@
 - **类型ifstream和istringstream都继承自istream。类似的，ofstream和ostringstream都继承自ostream**
 - **拷贝新的string给istringstream对象不会刷新状态！**
 
-![IO 库类型和头文件](./images/IO 库类型和头文件.png)
-![IO 库条件状态 #1](./images/IO 库条件状态 #1.png)
-![IO 库条件状态 #2](./images/IO 库条件状态 #2.png)
+![IO 库类型和头文件](./images/IO%20库类型和头文件.png)
+![IO 库条件状态 #1](./images/IO%20库条件状态%20#1.png)
+![IO 库条件状态 #2](./images/IO%20库条件状态%20#2.png)
 
 ## 流的状态
 
@@ -62,7 +62,7 @@
 
 **每个输入流最多关联一个输出流，但是多个输入流可以关联到同一个输出流**
 
-![fstream 特有的操作](./images/fstream 特有的操作.png)
+![fstream 特有的操作](./images/fstream%20特有的操作.png)
 
 ## 文件输入与输出
 
@@ -97,4 +97,4 @@
 
 **每次调用open就会确定文件模式**
 
-![stringstream 特有的操作](./images/stringstream 特有的操作.png)
+![stringstream 特有的操作](./images/stringstream%20特有的操作.png)

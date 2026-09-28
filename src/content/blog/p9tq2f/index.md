@@ -31,7 +31,7 @@
 
 ![标准容器迭代器的运算符](./images/标准容器迭代器的运算符.png)
 
-![vector 和 string 迭代器支持的运算](./images/vector 和 string 迭代器支持的运算.png)
+![vector 和 string 迭代器支持的运算](./images/vector%20和%20string%20迭代器支持的运算.png)
 
 ## 迭代器范围：
 

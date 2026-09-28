@@ -1,6 +1,6 @@
 ## forward_list特殊的操作
 
-![在 forward_list 中插入或删除元素的操作](./images/在 forward_list 中插入或删除元素的操作.png)
+![在 forward_list 中插入或删除元素的操作](./images/在%20forward_list%20中插入或删除元素的操作.png)
 
 ## 为什么forward_list提供特殊版本的增删操作：
 

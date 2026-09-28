@@ -25,4 +25,4 @@
   ~~~
 
 
-- ![initialize_list 提供的操作](./images/initialize_list 提供的操作.png)
+- ![initialize_list 提供的操作](./images/initialize_list%20提供的操作.png)

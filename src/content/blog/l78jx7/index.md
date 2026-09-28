@@ -10,7 +10,7 @@
 
 ## 定义和初始化vector对象：
 
-![初始化 vector 对象的方法](./images/初始化 vector 对象的方法.png)
+![初始化 vector 对象的方法](./images/初始化%20vector%20对象的方法.png)
 
 **对于第5种构造初始化方法，如果忽略初始值，库会创建值初始化的元素初值。如果是内置类型则为0，如果是某种库类型，则执行默认初始化**
 
@@ -34,4 +34,4 @@ vector<int> vi(begin(arr),end(arr));//vi内容为1234
 
 ## vector 的操作：
 
-![vector 支持的操作](./images/vector 支持的操作.png)
+![vector 支持的操作](./images/vector%20支持的操作.png)

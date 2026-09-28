@@ -58,9 +58,9 @@
 
 ## 定义和初始化string对象：
 
-![初始化 string 对象的方式](./images/初始化 string 对象的方式.png)
+![初始化 string 对象的方式](./images/初始化%20string%20对象的方式.png)
 
-![构造 string 的其他方法](./images/构造 string 的其他方法.png)
+![构造 string 的其他方法](./images/构造%20string%20的其他方法.png)
 
 **使用数组初始化string时，若不提供计数值且数组并非以空字符结束，或者计数值大于数组的大小时，行为是未定义的**
 
@@ -70,7 +70,7 @@
 
 ## string的操作：
 
-![string 的操作](./images/string 的操作.png)
+![string 的操作](./images/string%20的操作.png)
 
 ### 读写操作：
 
@@ -128,8 +128,8 @@ while (cin >> s)//如果输入" 111 222 33 4444 "
 
 ### 添加/删除/替换操作：
 
-![修改 string 的操作 #1](./images/修改 string 的操作 #1.png)
-![修改 string 的操作 #2](./images/修改 string 的操作 #2.png)
+![修改 string 的操作 #1](./images/修改%20string%20的操作%20#1.png)
+![修改 string 的操作 #2](./images/修改%20string%20的操作%20#2.png)
 
 **assign操作中，如果提供cp和len，则len的大小如果超过cp指向数组的大小也不会报错！但是会显式之后的内存空间中存放的数据**
 
@@ -145,15 +145,15 @@ insert(pos,初始化列表)已经可以使用
 
 ### 搜索操作：
 
-![string 的搜索操作 #1](./images/string 的搜索操作 #1.png)
+![string 的搜索操作 #1](./images/string%20的搜索操作%20#1.png)
 
-![string 的搜索操作 #2](./images/string 的搜索操作 #2.png)
+![string 的搜索操作 #2](./images/string%20的搜索操作%20#2.png)
 
 **每个搜索操作都返回一个string::size_type的值用于表示匹配位置的下标，如果搜索失败，则返回一个名叫string::npos的static成员。标准库将npos定义为一个const string::size_type类型，初始值为-1，因为它的类型为无符号类型，所以npos的初始值等于string的最大可能大小！**
 
 ### 比较操作：
 
-![s.compare 的集中参数形式](./images/s.compare 的集中参数形式.png)
+![s.compare 的集中参数形式](./images/s.compare%20的集中参数形式.png)
 
 **两个string之间，string和C风格字符串之间（应该是利用了string的转换构造函数）可以直接使用比较运算符进行比较**
 
@@ -161,7 +161,7 @@ insert(pos,初始化列表)已经可以使用
 
 ### 与数值类型的转换操作：（这是标准库函数！并非成员函数）
 
-![string 与数值之间的转换](./images/string 与数值之间的转换.png)
+![string 与数值之间的转换](./images/string%20与数值之间的转换.png)
 
 **要转换为数值的string中第一个非空白字符必须是数值（十进制）中可能出现的字符！！！**
 

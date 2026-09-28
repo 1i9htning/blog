@@ -262,3 +262,10 @@ posts:
     updatedAt:
       - 2022-09-25 20:40
     status: active
+  49x8hs:
+    title: 一条网络测试命令让 Windows Terminal 闪退：最后查到了 Starship 和字体
+    tags: []
+    draft: false
+    migrated: false
+    createdAt: auto
+    status: active

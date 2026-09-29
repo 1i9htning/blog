@@ -1,3 +1,7 @@
+# 元数据
+
+# 使用 createdAt 来表示首次完成该博客（内容）的时间，而非刚开始写（新建文件）的时间（标准用法）
+
 ignoredCommits:
   - f9139e81a680f498c154c827277f7c4d74d8431b # 迁移提交：元数据分离与文件夹搬迁，不计入更新时间
 posts:
@@ -6,7 +10,7 @@ posts:
     tags: [C++, std]
     draft: false
     migrated: true
-    createdAt: 2022-10-08 18:33
+    createdAt: 2022-10-08 18:50 # 新建时间为 2022-10-08 18:33
     updatedAt:
       - 2022-10-08 18:50
     status: active
@@ -24,9 +28,9 @@ posts:
     tags: [C++, std, stream]
     draft: false
     migrated: true
-    createdAt: 2022-09-09 14:41
+    createdAt: 2022-09-09 18:07 # 新建时间为 2022-09-09 14:41
     updatedAt:
-      - 2022-09-09 18:11
+      - 2022-09-09 18:07
     status: active
   bkq0uw:
     title: Rust 基础环境部署
@@ -42,34 +46,34 @@ posts:
     tags: [C++, std, 关联容器]
     draft: false
     migrated: true
-    createdAt: 2022-08-19 01:47
+    createdAt: 2022-08-19 01:47 # 此为新建时间
     updatedAt:
-      - 2022-09-17 17:48
+      - 2022-08-23 01:58
     status: active
   k7iyoj:
     title: 初始值列表initializer_list（标准库类型）
     tags: [C++, std]
     draft: false
     migrated: true
-    createdAt: 2022-09-02 14:54
+    createdAt: 2022-09-02 15:32 # 新建时间为 2022-09-02 14:54
     updatedAt:
-      - 2022-10-13 17:15
+      - 2022-09-02 15:32
     status: active
   n278nb:
     title: 动态内存
     tags: [C++, 动态内存]
     draft: false
     migrated: true
-    createdAt: 2022-09-26 21:45
+    createdAt: 2022-09-26 21:45 # 此为新建时间
     updatedAt:
-      - 2022-10-19 14:15
+      - 2022-10-10 15:33
     status: active
   gxsghx:
     title: 单项链表forward_list（标准库类型）
     tags: [C++, std, 链表]
     draft: false
     migrated: true
-    createdAt: 2022-09-13 01:42
+    createdAt: 2022-09-13 01:42 # 此为新建时间
     updatedAt:
       - 2022-09-18 18:35
     status: active
@@ -78,79 +82,79 @@ posts:
     tags: [C++, std, std::vector]
     draft: false
     migrated: true
-    createdAt: 2022-08-28 16:21
+    createdAt: 2022-08-28 16:21 # 此为新建时间
     updatedAt:
-      - 2022-09-17 17:49
+      - 2022-09-11 17:07
     status: active
   4r9n3d:
     title: 字符串string（标准库类型）
     tags: [C++, std, std::string]
     draft: false
     migrated: true
-    createdAt: 2022-08-28 11:34
+    createdAt: 2022-08-28 11:34 # 此为新建时间
     updatedAt:
-      - 2023-03-21 13:22 # [TODO] 丢失
+      - 2023-03-21 13:22
     status: active
   k6n7s1:
     title: 容器适配器
     tags: [C++, std]
     draft: false
     migrated: true
-    createdAt: 2022-09-18 18:35
+    createdAt: 2022-09-18 18:35 # 此为新建时间
     updatedAt:
-      - 2022-09-26 21:31
+      - 2022-09-26 21:30
     status: active
   sx64tv:
     title: 泛型算法
     tags: [C++, std, 泛型]
     draft: false
     migrated: true
-    createdAt: 2022-09-29 18:58
+    createdAt: 2022-09-29 18:58 # 此为新建时间
     updatedAt:
-      - 2022-10-08 18:32
+      - 2022-10-08 18:33
     status: active
   gufg4l:
     title: 特殊迭代器
     tags: [C++, std, 迭代器]
     draft: false
     migrated: true
-    createdAt: 2022-08-18 03:45
+    createdAt: 2022-08-18 03:45 # 此为新建时间
     updatedAt:
-      - 2022-08-18 04:55
+      - 2022-09-17 17:48
     status: active
   p9tq2f:
     title: 迭代器
     tags: [C++, std, 迭代器]
     draft: false
     migrated: true
-    createdAt: 2022-08-28 18:49
+    createdAt: 2022-08-28 18:49 # 此为新建时间
     updatedAt:
-      - 2022-10-09 17:31
+      - 2022-10-09 17:30
     status: active
   8fytoq:
     title: 顺序容器概览
     tags: [C++, std]
     draft: false
     migrated: true
-    createdAt: 2022-09-11 15:37
+    createdAt: 2022-09-11 15:37 # 此为新建时间
     updatedAt:
-      - 2022-10-13 17:18
+      - 2022-09-17 18:27
     status: active
   2svvcp:
     title: "C风格字符串"
     tags: ["C++", "字符串"]
     draft: false
     migrated: true
-    createdAt: 2022-08-29 13:52
+    createdAt: 2022-08-29 13:52 # 此为新建时间
     updatedAt:
-      - 2022-10-10 09:46
+      - 2022-09-25 20:40
     status: active
   jp46sw:
     title: "lambda表达式（匿名函数）"
     tags: ["C++", "lambda", "可调用对象"]
     draft: false
     migrated: true
-    createdAt: 2022-09-29 23:38
+    createdAt: 2022-09-30 01:15 # 新建时间为 2022-09-29 23:38
     updatedAt:
       - 2022-09-30 01:15
     status: active
@@ -159,79 +163,79 @@ posts:
     tags: ["C++", "函数"]
     draft: false
     migrated: true
-    createdAt: 2022-09-01 16:31
+    createdAt: 2022-09-01 16:31 # 此为新建时间
     updatedAt:
-      - 2022-09-19 15:01 # [TODO] 信息丢失
+      - 2022-10-13 16:23
     status: active
   rler5q:
     title: "函数匹配"
     tags: ["C++", "函数"]
     draft: false
     migrated: true
-    createdAt: 2022-09-03 21:20
+    createdAt: 2022-09-03 21:20 # 此为新建时间
     updatedAt:
-      - 2022-10-13 16:30
+      - 2022-09-25 20:40
     status: active
   0oaxz4:
     title: "函数重载"
     tags: ["C++", "函数", "重载"]
     draft: false
     migrated: true
-    createdAt: 2022-09-02 18:21
+    createdAt: 2022-09-02 18:21 # 此为新建时间
     updatedAt:
-      - 2022-09-25 20:40
+      - 2022-09-04 18:36
     status: active
   lkcvh2:
     title: "多维数组"
     tags: ["C++", "数组"]
     draft: false
     migrated: true
-    createdAt: 2022-08-29 14:34
+    createdAt: 2022-08-29 14:34 # 此为新建时间
     updatedAt:
-      - 2022-10-13 01:46 # [TODO] 信息丢失
+      - 2022-10-13 01:46
     status: active
   wk0y2c:
     title: "字符处理函数"
     tags: ["C++"]
     draft: false
     migrated: true
-    createdAt: 2022-08-28 15:34
+    createdAt: 2022-08-28 16:21 # 新建时间为 2022-08-28 15:34
     updatedAt:
-      - 2022-09-25 20:40
+      - 2022-08-28 16:21
     status: active
   iin4fa:
     title: "数组"
     tags: ["C++", "数组"]
     draft: false
     migrated: true
-    createdAt: 2022-08-28 20:16
+    createdAt: 2022-08-28 20:16 # 此为新建时间
     updatedAt:
-      - 2022-10-13 01:34
+      - 2022-09-25 20:40
     status: active
   dnvlil:
     title: "标准异常"
     tags: ["C++", "异常"]
     draft: false
     migrated: true
-    createdAt: 2022-09-01 14:49
+    createdAt: 2022-09-01 14:54 # 新建时间为 2022-09-01 14:49
     updatedAt:
-      - 2022-09-25 20:40
+      - 2022-09-01 14:54
     status: active
   eehcnn:
     title: "类"
     tags: ["C++", "类"]
     draft: false
     migrated: true
-    createdAt: 2022-08-28 10:49
+    createdAt: 2022-08-28 10:49 # 此为新建时间
     updatedAt:
-      - 2022-10-13 01:29 # [TODO] 信息丢失
+      - 2022-10-13 01:29
     status: active
   xwduo8:
     title: "语句"
     tags: ["C++", "语句"]
     draft: false
     migrated: true
-    createdAt: 2022-08-31 17:52
+    createdAt: 2022-08-31 17:52 # 此为新建时间
     updatedAt:
       - 2022-09-25 20:40
     status: active
@@ -240,7 +244,7 @@ posts:
     tags: ["C++", "运算符"]
     draft: false
     migrated: true
-    createdAt: 2022-08-29 15:32
+    createdAt: 2022-08-29 15:32 # 此为新建时间
     updatedAt:
       - 2022-09-25 20:40
     status: active
@@ -249,7 +253,7 @@ posts:
     tags: ["C++", "运算符"]
     draft: false
     migrated: true
-    createdAt: 2022-08-29 15:42
+    createdAt: 2022-08-29 15:42 # 此为新建时间
     updatedAt:
       - 2022-10-13 02:15
     status: active
@@ -258,7 +262,7 @@ posts:
     tags: ["C++", "预处理器"]
     draft: false
     migrated: true
-    createdAt: 2022-08-28 11:30
+    createdAt: 2022-08-28 11:30 # 此为新建时间
     updatedAt:
       - 2022-09-25 20:40
     status: active

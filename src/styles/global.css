@@ -323,8 +323,7 @@ button { color: inherit; }
 .contrib-activity-time { color: var(--ink-tertiary); font: .78rem/1.6 var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .contrib-details-kind { flex: none; padding: .15rem .6rem; border-radius: var(--radius-chip); background: var(--fill); color: var(--ink-secondary); font: .75rem/1.5 var(--font-mono); }
 /* 操作标签配色：创建（蓝）、更新（绿）、重命名（黑，走 token 以适配主题）、合并（琥珀）、删除（红） */
-.contrib-details-kind[data-kind='created'],
-.contrib-details-kind[data-kind='created-updated'] { background: var(--accent-soft); color: var(--accent); }
+.contrib-details-kind[data-kind='created'] { background: var(--accent-soft); color: var(--accent); }
 .contrib-details-kind[data-kind='updated'] { background: rgb(23 121 74 / 12%); color: #17794a; }
 .contrib-details-kind[data-kind='renamed'] { background: var(--quiet-strong); color: var(--ink); }
 .contrib-details-kind[data-kind='merged'] { background: rgb(138 90 0 / 16%); color: #8a5a00; }

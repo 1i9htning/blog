@@ -11,8 +11,6 @@ posts:
     draft: false
     migrated: true
     createdAt: 2022-10-08 18:50 # 新建时间为 2022-10-08 18:33
-    updatedAt:
-      - 2022-10-08 18:50
     status: active
   bobkb4:
     title: C++ ODR：从 TU、linkage 到 inline
@@ -20,8 +18,6 @@ posts:
     draft: false
     migrated: false
     createdAt: 2026-09-03 19:47:50
-    updatedAt:
-      - 2026-09-03 19:47:50
     status: active
   3guabc:
     title: IO类
@@ -36,8 +32,6 @@ posts:
     draft: false
     migrated: true
     createdAt: 2026-05-12 09:40
-    updatedAt:
-      - 2026-05-12 09:40
     status: active
   v1v2e9:
     title: 关联容器
@@ -151,8 +145,6 @@ posts:
     draft: false
     migrated: true
     createdAt: 2022-09-30 01:15 # 新建时间为 2022-09-29 23:38
-    updatedAt:
-      - 2022-09-30 01:15
     status: active
   3u4iv0:
     title: "函数"
@@ -212,8 +204,6 @@ posts:
     draft: false
     migrated: true
     createdAt: 2022-09-01 14:54 # 新建时间为 2022-09-01 14:49
-    updatedAt:
-      - 2022-09-01 14:54
     status: active
   eehcnn:
     title: "类"

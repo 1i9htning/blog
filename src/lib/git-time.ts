@@ -32,16 +32,15 @@ function parseCommitLog(stdout: string, ignore: Set<string>): GitCommit[] {
 }
 
 /**
- * 正文文件的 content commit 时间（epoch 毫秒，降序）。
+ * 正文文件首次加入 Git 后的更新提交时间（epoch 毫秒，降序）。
  * 跟随精确重命名（R100），只看新增/修改；注册表、images 等路径的 commit 不在此列。
- * excludeFirst 为 true 时，先从完整提交链剔除最早的导入提交，再应用 ignore。
+ * 对所有文章先从完整提交链剔除首次正文提交（创建而非更新），再应用 ignore。
  */
 export async function getContentCommitTimes(
   filePath: string,
   ignore: Set<string>,
-  excludeFirst = false,
 ): Promise<number[]> {
-  const cacheKey = `${cacheKeyFor(filePath, ignore)}\n${excludeFirst}`;
+  const cacheKey = cacheKeyFor(filePath, ignore);
   const cached = contentCommitTimesCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
@@ -57,7 +56,7 @@ export async function getContentCommitTimes(
       filePath,
     ]);
     const commits = parseCommitLog(stdout, new Set());
-    if (excludeFirst) commits.pop(); // git log 按从新到旧排列，末尾才是首次加入 Git 的提交。
+    commits.pop(); // git log 按从新到旧排列，末尾才是首次加入 Git 的正文提交。
     epochMillis = commits
       .filter((commit) => !ignore.has(commit.hash))
       .map((commit) => commit.epoch)

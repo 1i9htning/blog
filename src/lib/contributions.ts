@@ -4,7 +4,7 @@ import { REGISTRY_FILE, getIgnoredCommits, getRegistry, type RegistryPost } from
 import { formatActivityTime, shanghaiDayKey } from './time';
 import { validateIgnoredCommits } from './validate';
 
-export type ActivityKind = 'created' | 'updated' | 'created-updated' | 'renamed' | 'merged' | 'deleted';
+export type ActivityKind = 'created' | 'updated' | 'renamed' | 'merged' | 'deleted';
 
 /** 历史名称的装饰线：已删除用删除线、改名前的旧名用下划线、已合并的来源名用波浪线。 */
 export type ActivityDecoration = 'strikethrough' | 'underline' | 'wavy';
@@ -100,8 +100,6 @@ export function formatFullDate(date: string): string {
 export function activityLabel(kind: ActivityKind): string {
   if (kind === 'created') return '创建';
   if (kind === 'updated') return '更新';
-  // 组合 kind 保留原有文案，配色上归入“创建”色系（见 global.css 的 data-kind 规则）。
-  if (kind === 'created-updated') return '创建并更新内容';
   if (kind === 'renamed') return '重命名';
   if (kind === 'merged') return '合并';
   return '删除';
@@ -157,7 +155,7 @@ export function activityParts(activity: PostActivity): ActivityPart[] {
     return parts;
   }
 
-  // created / updated / created-updated：名称加装饰线（若有）与可选标注后缀
+  // created / updated：名称加装饰线（若有）与可选标注后缀
   if (activity.deleted) {
     parts.push(namePart(activity.title, 'strikethrough'));
     return parts;
@@ -232,11 +230,10 @@ function buildYear(
 /** epoch 并列时的兜底排序：先按事件类别，再按标题、目标名、文章 id。 */
 const kindOrder: Record<ActivityKind, number> = {
   created: 0,
-  'created-updated': 1,
-  updated: 2,
-  renamed: 3,
-  merged: 4,
-  deleted: 5,
+  updated: 1,
+  renamed: 2,
+  merged: 3,
+  deleted: 4,
 };
 
 function compareActivities(left: PostActivity, right: PostActivity): number {
@@ -283,7 +280,7 @@ export async function getContributions(): Promise<ContributionsData> {
   const contentActivity = (
     id: string,
     meta: RegistryPost,
-    kind: 'created' | 'updated' | 'created-updated',
+    kind: 'created' | 'updated',
     epoch: number,
   ): PostActivity => {
     const currentTitle = meta.title;
@@ -315,17 +312,11 @@ export async function getContributions(): Promise<ContributionsData> {
   ) => {
     const meta = registry.posts.get(id);
     if (meta === undefined) return;
-    const createdWasUpdated = createdEpoch !== null && updatedEpochs.includes(createdEpoch);
-    const createdIsOnlyUpdate = createdWasUpdated && updatedEpochs.length === 1;
-
     if (createdEpoch !== null) {
-      const kind = createdWasUpdated && !createdIsOnlyUpdate ? 'created-updated' : 'created';
-      addActivity(dayKey(createdEpoch), contentActivity(id, meta, kind, createdEpoch));
+      addActivity(dayKey(createdEpoch), contentActivity(id, meta, 'created', createdEpoch));
     }
     for (const updatedEpoch of updatedEpochs) {
-      if (updatedEpoch !== createdEpoch) {
-        addActivity(dayKey(updatedEpoch), contentActivity(id, meta, 'updated', updatedEpoch));
-      }
+      addActivity(dayKey(updatedEpoch), contentActivity(id, meta, 'updated', updatedEpoch));
     }
   };
 

@@ -41,10 +41,10 @@ async function fillUpdatedAtFromGit(
   meta: RegistryPost,
   ignore: Set<string>,
 ): Promise<ResolvedTimeHistory> {
-  // 迁移文章需在过滤 ignore 前剔除首次导入提交，避免误删最早的真实更新。
+  // 所有文章的首次正文提交都是创建而非更新；显式更新时间不参与 Git 提交过滤。
   const contentUpdateTimes = filePath === undefined
     ? []
-    : await getContentCommitTimes(filePath, ignore, meta.migrated);
+    : await getContentCommitTimes(filePath, ignore);
   const timesByEpoch = new Map<number, ResolvedTime>();
 
   for (const time of resolveUpdatedAt(meta.updatedAt)) timesByEpoch.set(time.value!.getTime(), time);
@@ -84,6 +84,11 @@ async function buildPostView(
   ignore: Set<string>,
 ): Promise<PostView> {
   const updatedAtHistory = await fillUpdatedAtFromGit(filePath, meta, ignore);
+  const createdAt = await fillCreatedAtFromGit(filePath, meta, ignore);
+  const createdEpoch = createdAt.value?.getTime();
+  if (createdEpoch !== undefined && updatedAtHistory.some((time) => time.value?.getTime() === createdEpoch)) {
+    throw new Error(`文章 ${id}（${meta.title}）的创建时间与更新时间冲突：${new Date(createdEpoch).toISOString()}（epoch ${createdEpoch}）`);
+  }
   return {
     id,
     title: meta.title,
@@ -92,7 +97,7 @@ async function buildPostView(
     migrated: meta.migrated,
     status: meta.status,
     mergedInto: meta.mergedInto,
-    createdAt: await fillCreatedAtFromGit(filePath, meta, ignore),
+    createdAt,
     updatedAtHistory,
     updatedAt: updatedAtHistory[updatedAtHistory.length - 1],
   };

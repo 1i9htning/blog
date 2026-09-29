@@ -29,8 +29,6 @@ posts:
     draft: false
     migrated: true
     createdAt: 2022-09-09 18:07 # 新建时间为 2022-09-09 14:41
-    updatedAt:
-      - 2022-09-09 18:07
     status: active
   bkq0uw:
     title: Rust 基础环境部署
@@ -56,8 +54,6 @@ posts:
     draft: false
     migrated: true
     createdAt: 2022-09-02 15:32 # 新建时间为 2022-09-02 14:54
-    updatedAt:
-      - 2022-09-02 15:32
     status: active
   n278nb:
     title: 动态内存
@@ -200,8 +196,6 @@ posts:
     draft: false
     migrated: true
     createdAt: 2022-08-28 16:21 # 新建时间为 2022-08-28 15:34
-    updatedAt:
-      - 2022-08-28 16:21
     status: active
   iin4fa:
     title: "数组"

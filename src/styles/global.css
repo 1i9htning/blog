@@ -270,7 +270,7 @@ button { color: inherit; }
 .prose table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .prose th, .prose td { padding: .55rem .65rem; border: 1px solid var(--hairline); text-align: left; }
 .prose th { background: var(--fill); font-weight: 600; }
-.prose img { max-width: 100%; border-radius: 12px; }
+.prose img { width: auto; height: auto; max-width: 100%; border-radius: 12px; }
 
 .activity-panel { border: 1px solid var(--hairline); border-radius: var(--radius-panel); background: var(--surface); box-shadow: var(--card-highlight), var(--shadow-1); overflow: hidden; }
 .contrib-layout { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; }

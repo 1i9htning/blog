@@ -69,7 +69,7 @@ posts:
       - 2022-10-10 15:33
     status: active
   gxsghx:
-    title: 单项链表forward_list（标准库类型）
+    title: 单向链表forward_list（标准库类型）
     tags: [C++, std, 链表]
     draft: false
     migrated: true

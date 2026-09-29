@@ -41,9 +41,10 @@ async function fillUpdatedAtFromGit(
   meta: RegistryPost,
   ignore: Set<string>,
 ): Promise<ResolvedTimeHistory> {
-  const gitTimes = filePath === undefined ? [] : await getContentCommitTimes(filePath, ignore);
-  // Git 历史按从新到旧排列；迁移文章最早的一条内容提交只是导入，不能算更新。
-  const contentUpdateTimes = meta.migrated ? gitTimes.slice(0, -1) : gitTimes;
+  // 迁移文章需在过滤 ignore 前剔除首次导入提交，避免误删最早的真实更新。
+  const contentUpdateTimes = filePath === undefined
+    ? []
+    : await getContentCommitTimes(filePath, ignore, meta.migrated);
   const timesByEpoch = new Map<number, ResolvedTime>();
 
   for (const time of resolveUpdatedAt(meta.updatedAt)) timesByEpoch.set(time.value!.getTime(), time);
